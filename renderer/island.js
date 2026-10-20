@@ -174,11 +174,17 @@ function renderSummary(s) {
 
 // ---------- painel ----------
 
+let lastHeroId = null;
 function renderHero(item) {
   heroItem = item;
   const hero = $('hero');
   hero.classList.toggle('hidden', !item);
+  if (item && lastHeroId && item.id !== lastHeroId && !reduceMotion) {
+    hero.animate([{ opacity: 0, transform: 'translateY(-6px) scale(0.985)' }, { opacity: 1, transform: 'none' }], { duration: 360, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+  }
+  lastHeroId = item ? item.id : null;
   if (!item) return;
+  hero.classList.toggle('stale', !!item.stale);
 
   const mascot = ui(state).mascot;
   $('hero-bot').classList.toggle('hidden', !mascot);
@@ -199,7 +205,9 @@ function renderHero(item) {
     meta.append(el('span', null, '·'));
     meta.append(el('span', null, ago(item.since)));
     ack.classList.remove('hidden');
-    ack.disabled = false;
+    // sem conexão, o alerta é da última coleta: não dá pra reconhecer agora
+    ack.disabled = !!item.stale;
+    ack.title = item.stale ? 'Sem conexão com o Zabbix agora' : '';
     ack.textContent = 'Reconhecer';
     $('hero-open').textContent = 'Abrir';
   } else {
@@ -231,6 +239,7 @@ function row(item) {
   if (item.source === 'zabbix' && state.zabbix.multi && item.serverName) where.prepend(el('span', 'srv', item.serverName));
   li.append(where);
   li.append(el('span', 'age', ago(isZbx ? item.since : item.updated || item.since)));
+  if (item.url) li.append(el('span', 'go', '↗'));
   li.addEventListener('click', () => {
     if (item.url) topwatch.openUrl(item.url);
   });
@@ -241,6 +250,43 @@ function row(item) {
   return li;
 }
 
+// Lista com chave por alerta: alerta novo entra deslizando, resolvido sai encolhendo e o resto
+// escorrega pro lugar novo (técnica FLIP: mede antes, mede depois, anima a diferença).
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function renderList(list, items) {
+  const before = new Map();
+  list.querySelectorAll('.row[data-id]:not(.leave)').forEach((li) => before.set(li.dataset.id, { top: li.getBoundingClientRect().top, el: li }));
+  const nextIds = new Set(items.map((it) => it.id));
+  const oldOrder = [...before.keys()];
+  list.textContent = '';
+  const fresh = new Map();
+  for (const it of items) {
+    const li = row(it);
+    li.dataset.id = it.id;
+    if (before.size && !before.has(it.id) && !reduceMotion) li.classList.add('enter');
+    list.append(li);
+    fresh.set(it.id, li);
+  }
+  if (reduceMotion) return;
+  // quem saiu volta pro lugar antigo só pra encolher e sumir
+  oldOrder.forEach((id, i) => {
+    if (nextIds.has(id)) return;
+    const ghost = before.get(id).el;
+    ghost.classList.add('leave');
+    const nextKept = oldOrder.slice(i + 1).find((x) => fresh.has(x));
+    if (nextKept) list.insertBefore(ghost, fresh.get(nextKept));
+    else list.append(ghost);
+    setTimeout(() => ghost.remove(), 320);
+  });
+  for (const [id, li] of fresh) {
+    const b = before.get(id);
+    if (!b) continue;
+    const dy = b.top - li.getBoundingClientRect().top;
+    if (Math.abs(dy) > 1) li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' });
+  }
+  list.classList.toggle('scrolls', list.scrollHeight > list.clientHeight + 2);
+}
+
 function renderPanel(s) {
   const plugin = tab === 'zabbix' ? null : pluginById(s, tab);
   const src = plugin || s.zabbix;
@@ -248,9 +294,17 @@ function renderPanel(s) {
   const errBox = $('error');
   errBox.classList.toggle('hidden', !src.error);
   errBox.textContent = src.error || '';
-  if (!plugin && offline(s) && src.retryAt) {
-    const secs = Math.max(0, Math.round((src.retryAt - Date.now()) / 1000));
-    errBox.append(el('span', 'retry', secs > 60 ? ` Nova tentativa em ${Math.round(secs / 60)} min.` : ` Nova tentativa em ${secs} s.`));
+  if (!plugin && offline(s)) {
+    const secs = src.retryAt ? Math.max(0, Math.round((src.retryAt - Date.now()) / 1000)) : null;
+    const since = ago(src.offlineSince);
+    errBox.textContent = '';
+    errBox.classList.add('offline');
+    errBox.append(el('b', null, `Sem conexão com o Zabbix ${since === 'agora' ? 'agora' : `há ${since}`}.`));
+    errBox.append(document.createTextNode(` Mostrando os alertas ${src.lastOkAt ? `de há ${ago(src.lastOkAt) === 'agora' ? 'menos de 1 min' : ago(src.lastOkAt)}` : 'da última coleta'}.`));
+    if (secs !== null) errBox.append(el('span', 'retry', secs > 60 ? ` Nova tentativa em ${Math.round(secs / 60)} min.` : ` Nova tentativa em ${secs} s.`));
+    if (src.error) errBox.append(el('small', 'detail', src.error));
+  } else {
+    errBox.classList.remove('offline');
   }
 
   let items;
@@ -265,9 +319,7 @@ function renderPanel(s) {
 
   renderHero(hero);
 
-  const list = $('list');
-  list.textContent = '';
-  items.forEach((it) => list.append(row(it)));
+  renderList($('list'), items);
 
   // calmo = nada pendente nessa aba
   const calm = !hero && !src.error;
@@ -315,13 +367,24 @@ function applyDisplay(s) {
   });
 }
 
+function setCount(node, n) {
+  const next = String(n);
+  if (node.textContent === next) return;
+  const had = node.textContent !== '';
+  node.textContent = next;
+  if (!had || reduceMotion) return;
+  node.classList.remove('tick');
+  void node.offsetWidth;
+  node.classList.add('tick');
+}
+
 function renderHeader(s) {
   const zHot = openProblems(s).some((p) => p.severity >= 4);
-  $('count-zabbix').textContent = openProblems(s).length;
+  setCount($('count-zabbix'), openProblems(s).length);
   $('count-zabbix').classList.toggle('hot', zHot);
   for (const p of pluginTabs(s)) {
     const c = document.querySelector(`.count[data-count="${p.id}"]`);
-    if (c) c.textContent = p.items.length;
+    if (c) setCount(c, p.items.length);
   }
   if (offline(s)) {
     const t = s.zabbix.lastOkAt;

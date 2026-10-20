@@ -383,3 +383,25 @@ button.link.inline {
 button.link:hover {
   color: var(--text);
 }
+
+/* alertas graves: subtítulo e linha do som */
+h3.sub {
+  margin: 14px 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #7d838c);
+}
+.sound-row {
+  align-items: center;
+}
+.sound-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+#sound-result:empty {
+  display: none;
+}

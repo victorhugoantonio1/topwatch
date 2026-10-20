@@ -379,14 +379,63 @@ topwatch.onPinned((p) => {
 });
 
 // som do alerta grave (sintetizado em scripts/alert-sound.py); toca mesmo com o Windows em silêncio de notificações
-const alertSound = new Audio('sounds/alerta.wav');
+const DEFAULT_SOUND = 'sounds/alerta.wav';
+const alertSound = new Audio(DEFAULT_SOUND);
 alertSound.volume = 0.8;
+let soundUrl = null;
+// som escolhido nas configurações (o processo principal manda os bytes; null = padrão)
+if (topwatch.onSoundData) {
+  topwatch.onSoundData((d) => {
+    if (soundUrl) URL.revokeObjectURL(soundUrl);
+    soundUrl = d ? URL.createObjectURL(new Blob([d.data], { type: d.mime })) : null;
+    alertSound.src = soundUrl || DEFAULT_SOUND;
+  });
+}
 if (topwatch.onSound) {
   topwatch.onSound(() => {
     alertSound.currentTime = 0;
     alertSound.play().catch(() => {});
   });
 }
+
+// caixinha de alerta grave: aparece embaixo da barra recolhida por alguns segundos; clicar abre a barra
+const notice = $('notice');
+let noticeTimer;
+function hideNotice() {
+  clearTimeout(noticeTimer);
+  notice.classList.remove('on');
+  setTimeout(() => {
+    if (!notice.classList.contains('on')) notice.hidden = true;
+  }, 320);
+  if (!island.classList.contains('expanded') && !island.matches(':hover')) topwatch.setInteractive(false);
+}
+function showNotice(items) {
+  if (!items || !items.length) return;
+  const top = items.slice().sort((a, b) => b.level - a.level)[0];
+  notice.dataset.level = String(top.level);
+  $('notice-meta').textContent = `${top.label}${top.host ? ` · ${top.host}` : ''}${items.length > 1 ? `  +${items.length - 1}` : ''}`;
+  $('notice-title').textContent = top.title;
+  notice.hidden = false;
+  void notice.offsetWidth;
+  notice.classList.add('on');
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(hideNotice, 10000);
+}
+notice.addEventListener('mouseenter', () => {
+  clearTimeout(noticeTimer);
+  topwatch.setInteractive(true);
+});
+notice.addEventListener('mouseleave', () => {
+  noticeTimer = setTimeout(hideNotice, 2500);
+  if (!island.classList.contains('expanded')) topwatch.setInteractive(false);
+});
+notice.addEventListener('click', (e) => {
+  if (e.target.closest('#notice-close')) return hideNotice();
+  hideNotice();
+  topwatch.setInteractive(true);
+  expand();
+});
+if (topwatch.onNotice) topwatch.onNotice(showNotice);
 
 topwatch.onAlert(() => {
   heroBot.jolt();

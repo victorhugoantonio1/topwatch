@@ -19,14 +19,28 @@
           <span><b>Modo demo</b><small>Mostra dados de exemplo em vez de buscar nos servidores.</small></span>
           <input type="checkbox" id="demo" />
         </label>
+        <h3 class="sub">Alertas graves (Alta e Desastre)</h3>
         <label class="row switch">
-          <span><b>Notificar alertas graves</b><small>Notificação do Windows para problemas novos de severidade Alta ou Desastre.</small></span>
+          <span><b>Caixinha na barra</b><small>Mostra o alerta numa caixinha embaixo da barra por alguns segundos. Clique nela pra abrir.</small></span>
+          <input type="checkbox" id="notifyBar" />
+        </label>
+        <label class="row switch">
+          <span><b>Notificação do Windows</b><small>Também avisa pela central de notificações do Windows.</small></span>
           <input type="checkbox" id="notify" />
         </label>
         <label class="row switch">
-          <span><b>Som nos alertas graves</b><small>Toca um aviso curto quando chega um problema novo de severidade Alta ou Desastre.</small></span>
+          <span><b>Som</b><small>Toca um aviso curto. Desligado, a notificação do Windows segue o som que você configurou no Windows.</small></span>
           <input type="checkbox" id="notifySound" />
         </label>
+        <div class="row sound-row">
+          <span><b>Som do aviso</b><small id="sound-name">Padrão do TopWatch</small></span>
+          <span class="sound-actions">
+            <button type="button" class="secondary" id="sound-test">Testar</button>
+            <button type="button" class="secondary" id="sound-pick">Escolher arquivo…</button>
+            <button type="button" class="link hidden" id="sound-reset">Usar o padrão</button>
+          </span>
+        </div>
+        <p class="result" id="sound-result"></p>
         <label class="row">
           <span><b>Atualizar a cada</b><small>Entre 30 e 600 segundos.</small></span>
           <span class="unit"><input type="number" id="pollSeconds" min="30" max="600" step="10" /> s</span>

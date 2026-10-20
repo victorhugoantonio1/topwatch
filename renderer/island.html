@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:" />
     <title>TopWatch</title>
     <link rel="stylesheet" href="island.css" />
   </head>
@@ -59,6 +59,16 @@
 
         <ul id="list"></ul>
       </div>
+    </div>
+
+    <!-- caixinha de alerta grave, embaixo da barra recolhida -->
+    <div id="notice" class="notice" role="alert" aria-live="assertive" hidden>
+      <span class="notice-bar" aria-hidden="true"></span>
+      <div class="notice-text">
+        <div class="notice-meta" id="notice-meta"></div>
+        <div class="notice-title" id="notice-title"></div>
+      </div>
+      <button id="notice-close" class="notice-close" title="Fechar" aria-label="Fechar">✕</button>
     </div>
 
     <script src="bot.js"></script>

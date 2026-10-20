@@ -235,7 +235,7 @@ function moveWindowTo(target, ms, done) {
     if (!island || island.isDestroyed()) return clearInterval(timer);
     const t = Math.min(1, (Date.now() - t0) / ms);
     const e = ease(t);
-    island.setPosition(Math.round(from.x + (target.x - from.x) * e), Math.round(from.y + (target.y - from.y) * e));
+    island.setBounds({ x: Math.round(from.x + (target.x - from.x) * e), y: Math.round(from.y + (target.y - from.y) * e), width: ISLAND_W, height: ISLAND_H });
     if (t >= 1) {
       clearInterval(timer);
       done();
@@ -252,7 +252,9 @@ function dragTick() {
   const vy = ((p.y - drag.last.y) / dt) * 1000;
   drag.last = p;
   drag.t = now;
-  island.setPosition(Math.round(p.x - ISLAND_W / 2), Math.round(p.y - ISLAND_H / 2));
+  // setBounds com o tamanho fixo: no Windows com escala (125%, 150%), setPosition repetido faz a janela
+  // crescer de pouquinho em pouquinho e o boneco "escorrega" pra baixo do cursor
+  island.setBounds({ x: Math.round(p.x - ISLAND_W / 2), y: Math.round(p.y - ISLAND_H / 2), width: ISLAND_W, height: ISLAND_H });
   island.webContents.send('drag:move', { vx, vy });
 }
 

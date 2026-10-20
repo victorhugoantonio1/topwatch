@@ -425,7 +425,6 @@ if (topwatch.onDock) topwatch.onDock((edge) => (document.body.dataset.edge = edg
 // ---------- arrastar: a barra vira o Vigia de corpo inteiro; ao soltar, ele mergulha e vira a barra ----------
 const dragbotEl = $('dragbot');
 const buddy = createBuddy(dragbotEl);
-const ripple = $('ripple');
 let press = null; // { x, y, id, el }
 let dragging = false;
 
@@ -467,7 +466,10 @@ function startDrag() {
   $('panel').setAttribute('aria-hidden', 'true');
   dragbotEl.className = 'dragbot';
   dragbotEl.style.transform = '';
+  // a cabeça usa a cor do estado atual (olho e antena laranja num alerta Alta, por exemplo)
+  dragbotEl.style.setProperty('--level', getComputedStyle(island).getPropertyValue('--level'));
   document.body.classList.add('dragging');
+  buddy.setEyesShut(true);
   buddy.start();
   topwatch.dragStart();
 }
@@ -479,56 +481,35 @@ function endDrag() {
 
 if (topwatch.onDragMove) topwatch.onDragMove((v) => buddy.setVelocity(v.vx, v.vy));
 
-// ponto da pílula e um ponto "de pouso" logo ao lado dela, dentro da tela, em cada borda
+// onde a luz da pílula fica dentro da janela, em cada borda
 const PILL = { top: [320, 15], bottom: [320, 315], left: [15, 165], right: [625, 165] };
-const PERCH = { top: [320, 92], bottom: [320, 238], left: [92, 165], right: [548, 165] };
-let landing = null;
+// centro do visor da cabeça, com a cabeça na posição de arrasto (veja .dragbot no CSS)
+const VISOR = [320, 184.6];
 
-// soltou: voa até perto da borda (a janela anda junto até a posição final)
+// soltou: a cabeça abre o olho, voa até o lugar da pílula e perde a casca (a janela anda junto até a borda)
 if (topwatch.onDragDrop) {
   topwatch.onDragDrop((d) => {
-    landing = d.edge;
-    const [px, py] = PERCH[d.edge];
-    // o ponto de pega do boneco (topo da antena) fica no centro da janela: 320, 165 - 26 + 14
-    const gx = 320;
-    const gy = 153;
+    const [lx, ly] = PILL[d.edge];
+    buddy.setEyesShut(false);
+    buddy.stop();
     dragbotEl.style.setProperty('--fly', `${d.ms}ms`);
     dragbotEl.classList.add('flying');
-    // pousa com o corpo (não a antena) no ponto de pouso
-    dragbotEl.style.transform = `translate(${px - gx}px, ${py - gy - 60}px) scale(0.8)`;
+    dragbotEl.style.transform = `translate(${lx - VISOR[0]}px, ${ly - VISOR[1]}px) scale(1.08)`;
   });
 }
 
-// chegou: mergulha na barra; o olho dele vira a luz da pílula e a barra se abre a partir dali
+// chegou: no lugar do visor aparece a pílula do mesmo tamanho, e ela se abre a partir dali
 if (topwatch.onDragLanded) {
   topwatch.onDragLanded((d) => {
-    const edge = d.edge || landing;
-    const [lx, ly] = PILL[edge];
-    const gx = 320;
-    const gy = 153;
-    dragbotEl.classList.remove('flying');
-    dragbotEl.classList.add('diving');
-    // o olho fica a ~38 px abaixo do ponto de pega; com escala 0.15 ele cai em cima da luz
-    dragbotEl.style.transform = `translate(${lx - gx}px, ${ly - gy - 38 * 0.15}px) scale(0.15)`;
-    setTimeout(() => {
-      document.body.dataset.edge = edge;
-      island.classList.add('seed', 'flash');
-      document.body.classList.remove('dragging');
-      ripple.style.left = `${lx}px`;
-      ripple.style.top = `${ly}px`;
-      ripple.classList.remove('go');
-      void ripple.offsetWidth;
-      ripple.classList.add('go');
-      void island.offsetWidth;
-      requestAnimationFrame(() => island.classList.remove('seed')); // abre na pílula com a transição normal
-      setTimeout(() => island.classList.remove('flash'), 750);
-    }, 300);
-    setTimeout(() => {
-      buddy.stop();
-      dragbotEl.className = 'dragbot';
-      dragbotEl.style.transform = '';
-      topwatch.setInteractive(island.matches(':hover'));
-    }, 420);
+    document.body.dataset.edge = d.edge;
+    island.classList.add('seed', 'flash');
+    document.body.classList.remove('dragging');
+    dragbotEl.className = 'dragbot';
+    dragbotEl.style.transform = '';
+    void island.offsetWidth;
+    requestAnimationFrame(() => requestAnimationFrame(() => island.classList.remove('seed')));
+    setTimeout(() => island.classList.remove('flash'), 650);
+    setTimeout(() => topwatch.setInteractive(island.matches(':hover')), 400);
   });
 }
 

@@ -21,7 +21,7 @@
         </label>
         <h3 class="sub">Alertas graves (Alta e Desastre)</h3>
         <label class="row switch">
-          <span><b>Caixinha na barra</b><small>Mostra o alerta numa caixinha embaixo da barra por alguns segundos. Clique nela pra abrir.</small></span>
+          <span><b>Mostrar na barra</b><small>A barra cresce e mostra o alerta por alguns segundos. Clique nela pra abrir.</small></span>
           <input type="checkbox" id="notifyBar" />
         </label>
         <label class="row switch">
@@ -49,6 +49,16 @@
 
       <section>
         <h2>Aparência</h2>
+        <label class="field">
+          <b>Posição da barra</b>
+          <select id="ui.dock.edge">
+            <option value="top">Topo</option>
+            <option value="bottom">Embaixo</option>
+            <option value="left">Lateral esquerda</option>
+            <option value="right">Lateral direita</option>
+          </select>
+          <small>Também dá pra arrastar a barra: ela vira um robozinho e gruda na borda onde você soltar, em qualquer monitor.</small>
+        </label>
         <label class="field">
           <b>O que a barra mostra</b>
           <select id="ui.display">

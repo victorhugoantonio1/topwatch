@@ -398,44 +398,169 @@ if (topwatch.onSound) {
   });
 }
 
-// caixinha de alerta grave: aparece embaixo da barra recolhida por alguns segundos; clicar abre a barra
-const notice = $('notice');
+// alerta grave chegando: a própria barra cresce e mostra por alguns segundos; clicar abre a barra
 let noticeTimer;
 function hideNotice() {
   clearTimeout(noticeTimer);
-  notice.classList.remove('on');
-  setTimeout(() => {
-    if (!notice.classList.contains('on')) notice.hidden = true;
-  }, 320);
-  if (!island.classList.contains('expanded') && !island.matches(':hover')) topwatch.setInteractive(false);
+  island.classList.remove('noticing');
 }
 function showNotice(items) {
-  if (!items || !items.length) return;
+  if (!items || !items.length || island.classList.contains('expanded') || document.body.classList.contains('dragging')) return;
   const top = items.slice().sort((a, b) => b.level - a.level)[0];
-  notice.dataset.level = String(top.level);
   $('notice-meta').textContent = `${top.label}${top.host ? ` · ${top.host}` : ''}${items.length > 1 ? `  +${items.length - 1}` : ''}`;
   $('notice-title').textContent = top.title;
-  notice.hidden = false;
-  void notice.offsetWidth;
-  notice.classList.add('on');
+  island.classList.add('noticing');
   clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(hideNotice, 10000);
+  noticeTimer = setTimeout(hideNotice, 8000);
 }
-notice.addEventListener('mouseenter', () => {
-  clearTimeout(noticeTimer);
-  topwatch.setInteractive(true);
-});
-notice.addEventListener('mouseleave', () => {
-  noticeTimer = setTimeout(hideNotice, 2500);
-  if (!island.classList.contains('expanded')) topwatch.setInteractive(false);
-});
-notice.addEventListener('click', (e) => {
-  if (e.target.closest('#notice-close')) return hideNotice();
+$('noticebox').addEventListener('click', () => {
   hideNotice();
-  topwatch.setInteractive(true);
   expand();
 });
 if (topwatch.onNotice) topwatch.onNotice(showNotice);
+
+// ---------- borda onde a barra fica ----------
+if (topwatch.onDock) topwatch.onDock((edge) => (document.body.dataset.edge = edge));
+
+// ---------- arrastar: vira um robozinho com perninhas e, ao soltar, estoura numa bolha e volta a ser barra ----------
+const dragbotEl = $('dragbot');
+const dragBot = createBot($('drag-bot'));
+const legL = $('leg-l');
+const legR = $('leg-r');
+const bubble = $('bubble');
+let press = null; // { x, y, id, el }
+let dragging = false;
+let flying = false;
+let vel = { x: 0, y: 0 };
+const phys = { tilt: 0, l: 0, r: 0, t: 0 };
+
+function dragZone(target) {
+  if (target.closest('button, .tab, .row, #list, input, a')) return false;
+  return !!target.closest('#pill, header, #noticebox, #hero, #calm');
+}
+
+island.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || !dragZone(e.target)) return;
+  press = { x: e.screenX, y: e.screenY, id: e.pointerId, el: e.target };
+});
+window.addEventListener('pointermove', (e) => {
+  if (!press || dragging) return;
+  if (Math.hypot(e.screenX - press.x, e.screenY - press.y) > 6) startDrag();
+});
+window.addEventListener('pointerup', () => {
+  if (dragging) endDrag();
+  press = null;
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && dragging) {
+    dragging = false;
+    topwatch.dragCancel();
+  }
+});
+
+function startDrag() {
+  dragging = true;
+  try {
+    press.el.setPointerCapture(press.id);
+  } catch {
+    // sem captura também funciona: a janela anda junto com o cursor
+  }
+  clearTimeout(openTimer);
+  clearTimeout(closeTimer);
+  hideNotice();
+  island.classList.remove('expanded');
+  $('panel').setAttribute('aria-hidden', 'true');
+  dragbotEl.classList.remove('flying');
+  dragbotEl.style.transform = '';
+  dragbotEl.style.opacity = '';
+  vel = { x: 0, y: 0 };
+  document.body.classList.add('dragging');
+  dragBot.setMood('watch');
+  dragBot.jolt();
+  topwatch.dragStart();
+  requestAnimationFrame(physicsLoop);
+}
+
+function endDrag() {
+  dragging = false;
+  topwatch.dragEnd();
+}
+
+if (topwatch.onDragMove) topwatch.onDragMove((v) => (vel = { x: v.vx, y: v.vy }));
+
+// física das perninhas: o corpo inclina pro lado do movimento, as pernas ficam pra trás e "correm" quando vai rápido
+function physicsLoop(now) {
+  if (!dragging && !flying) return;
+  const clamp = (v, a) => Math.max(-a, Math.min(a, v));
+  const speed = Math.hypot(vel.x, vel.y);
+  phys.t = now;
+  const tiltTarget = clamp(vel.x * 0.025, 26);
+  phys.tilt += (tiltTarget - phys.tilt) * 0.18;
+  const trail = clamp(-vel.x * 0.045, 50) + (vel.y < -200 ? 0 : 0);
+  const run = speed > 140 ? Math.sin(now / 55) * Math.min(32, speed * 0.04) : 0;
+  const dangle = Math.sin(now / 420) * 4; // parado no ar, balança devagar
+  phys.l += (trail + run + dangle - phys.l) * 0.25;
+  phys.r += (trail - run + dangle - phys.r) * 0.25;
+  legL.style.transform = `rotate(${phys.l}deg)`;
+  legR.style.transform = `rotate(${phys.r}deg)`;
+  if (!flying) dragbotEl.style.transform = `rotate(${phys.tilt}deg)`;
+  dragBot.pose(clamp(vel.x / 700, 1), clamp(vel.y / 900, 1) * 0.6);
+  vel = { x: vel.x * 0.92, y: vel.y * 0.92 }; // sem mensagem nova, desacelera
+  requestAnimationFrame(physicsLoop);
+}
+
+// soltou: o robozinho voa até onde a pílula vai ficar (a janela anda junto)
+if (topwatch.onDragDrop) {
+  topwatch.onDragDrop((d) => {
+    flying = true;
+    const r = dragbotEl.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + 50;
+    dragbotEl.style.setProperty('--fly', `${d.ms}ms`);
+    dragbotEl.classList.add('flying');
+    dragbotEl.style.transform = `translate(${d.x - cx}px, ${d.y - cy}px) scale(0.45)`;
+    dragbotEl.style.opacity = '0';
+    bubble.style.left = `${d.x}px`;
+    bubble.style.top = `${d.y}px`;
+    bubble.dataset.edge = d.edge;
+  });
+}
+
+// chegou: troca a borda, estoura a bolha e a barra nasce
+if (topwatch.onDragLanded) {
+  topwatch.onDragLanded((d) => {
+    document.body.dataset.edge = d.edge;
+    const pill = { top: [320, 15], bottom: [320, 315], left: [15, 165], right: [625, 165] }[d.edge];
+    bubble.style.left = `${pill[0]}px`;
+    bubble.style.top = `${pill[1]}px`;
+    bubble.classList.remove('pop');
+    void bubble.offsetWidth;
+    bubble.classList.add('pop');
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 34 + Math.random() * 22;
+      const drop = document.createElement('span');
+      drop.className = 'drop';
+      drop.style.left = `${pill[0]}px`;
+      drop.style.top = `${pill[1]}px`;
+      drop.style.setProperty('--dx', `${Math.cos(a) * dist}px`);
+      drop.style.setProperty('--dy', `${Math.sin(a) * dist}px`);
+      drop.style.animationDelay = '200ms';
+      document.body.append(drop);
+      setTimeout(() => drop.remove(), 900);
+    }
+    setTimeout(() => {
+      flying = false;
+      document.body.classList.remove('dragging');
+      dragbotEl.classList.remove('flying');
+      dragbotEl.style.transform = '';
+      island.classList.remove('born');
+      void island.offsetWidth;
+      island.classList.add('born');
+      topwatch.setInteractive(island.matches(':hover'));
+    }, 230);
+  });
+}
 
 topwatch.onAlert(() => {
   heroBot.jolt();

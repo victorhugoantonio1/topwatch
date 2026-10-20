@@ -19,6 +19,14 @@ contextBridge.exposeInMainWorld('topwatch', {
   onSound: (fn) => ipcRenderer.on('sound', () => fn()),
   onSoundData: (fn) => ipcRenderer.on('sound-data', (_e, d) => fn(d)),
   onNotice: (fn) => ipcRenderer.on('notice', (_e, items) => fn(items)),
+  onDock: (fn) => ipcRenderer.on('dock', (_e, edge) => fn(edge)),
+  // arrastar a barra
+  dragStart: () => ipcRenderer.send('drag:start'),
+  dragEnd: () => ipcRenderer.send('drag:end'),
+  dragCancel: () => ipcRenderer.send('drag:cancel'),
+  onDragMove: (fn) => ipcRenderer.on('drag:move', (_e, v) => fn(v)),
+  onDragDrop: (fn) => ipcRenderer.on('drag:drop', (_e, d) => fn(d)),
+  onDragLanded: (fn) => ipcRenderer.on('drag:landed', (_e, d) => fn(d)),
 
   // configurações
   getSettings: () => ipcRenderer.invoke('settings:get'),

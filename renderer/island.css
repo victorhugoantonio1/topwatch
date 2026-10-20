@@ -833,38 +833,129 @@ header {
   margin: 0;
 }
 
-/* ---------- caixinha de alerta grave ---------- */
+/* ---------- alerta grave chegando: a barra cresce e mostra ---------- */
 
-.notice {
+.noticebox {
   position: absolute;
-  top: 40px;
-  left: 50%;
-  width: 340px;
-  display: grid;
-  grid-template-columns: 4px 1fr auto;
-  gap: 12px;
+  inset: 0;
+  display: flex;
   align-items: center;
-  padding: 11px 12px 11px 0;
-  border-radius: 14px;
-  background: var(--bg);
-  box-shadow:
-    0 0 0 1px var(--line),
-    0 16px 36px -10px rgba(0, 0, 0, 0.6);
-  cursor: pointer;
-  transform: translate(-50%, -12px);
+  gap: 12px;
+  padding: 0 18px;
   opacity: 0;
-  transition:
-    transform 320ms var(--ease),
-    opacity 220ms ease;
-  --nc: var(--sev-4);
+  pointer-events: none;
+  transition: opacity 160ms;
 }
-.notice[hidden] { display: grid; visibility: hidden; pointer-events: none; }
-.notice.on { transform: translate(-50%, 0); opacity: 1; }
-.notice[data-level='5'] { --nc: var(--sev-5); }
-.notice-bar { align-self: stretch; border-radius: 0 4px 4px 0; background: var(--nc); box-shadow: 0 0 12px var(--nc); }
 .notice-text { min-width: 0; }
-.notice-meta { font-size: 11.5px; color: var(--nc); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.notice-title { margin-top: 2px; font-size: 13px; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.notice-close { width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
-.notice-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e8ecf4); }
-#island.expanded ~ .notice { opacity: 0; pointer-events: none; }
+.notice-meta { font-size: 11.5px; font-weight: 600; color: var(--level); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice-title { margin-top: 2px; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#island.noticing:not(.expanded) {
+  width: 380px;
+  height: 56px;
+  border-radius: 0 0 22px 22px;
+}
+#island.noticing:not(.expanded) #pill { opacity: 0; }
+#island.noticing:not(.expanded) .noticebox { opacity: 1; transition-delay: 150ms; pointer-events: auto; cursor: pointer; }
+#island.noticing .noticebox .beam { opacity: 1; animation: sweep 2.8s linear infinite; }
+
+/* ---------- bordas: topo (padrão), embaixo e laterais ---------- */
+
+body[data-edge='bottom'] #island { top: auto; bottom: 0; border-radius: 15px 15px 0 0; box-shadow: 0 0 0 1px var(--line), 0 -12px 32px -8px rgba(0, 0, 0, 0.55); }
+body[data-edge='bottom'] #island.expanded { border-radius: 24px 24px 0 0; }
+body[data-edge='bottom'] #island.noticing:not(.expanded) { border-radius: 22px 22px 0 0; }
+body[data-edge='bottom'] #pill { inset: auto 0 0 0; }
+
+body[data-edge='left'] #island,
+body[data-edge='right'] #island { top: 50%; transform: translateY(-50%); width: 30px; height: 224px; }
+body[data-edge='left'] #island { left: 0; border-radius: 0 15px 15px 0; }
+body[data-edge='right'] #island { left: auto; right: 0; border-radius: 15px 0 0 15px; }
+body[data-edge='left'] #island.alerting,
+body[data-edge='right'] #island.alerting { width: 30px; height: 300px; }
+body[data-edge='left'] #island.expanded,
+body[data-edge='right'] #island.expanded { width: 600px; height: 296px; }
+body[data-edge='left'] #island.expanded.quiet,
+body[data-edge='right'] #island.expanded.quiet { height: 168px; }
+body[data-edge='left'] #island.expanded { border-radius: 0 24px 24px 0; }
+body[data-edge='right'] #island.expanded { border-radius: 24px 0 0 24px; }
+body[data-edge='left'] #island.noticing:not(.expanded),
+body[data-edge='right'] #island.noticing:not(.expanded) { width: 340px; height: 56px; }
+body[data-edge='left'] #island.noticing:not(.expanded) { border-radius: 0 22px 22px 0; }
+body[data-edge='right'] #island.noticing:not(.expanded) { border-radius: 22px 0 0 22px; }
+/* pílula em pé: luz em cima e o texto na vertical */
+body[data-edge='left'] #pill,
+body[data-edge='right'] #pill { inset: 0 auto 0 0; width: 30px; height: auto; padding: 14px 0; flex-direction: column; writing-mode: vertical-rl; }
+body[data-edge='left'] #pill { transform: rotate(180deg); }
+body[data-edge='right'] #pill { inset: 0 0 0 auto; }
+
+/* ---------- arrastando: robozinho com perninhas ---------- */
+
+.dragbot {
+  position: absolute;
+  left: calc(50% - 42px);
+  top: calc(50% - 50px);
+  width: 84px;
+  height: 120px;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: 50% 40%;
+  --eye: var(--level);
+}
+.dragbot .bot-slot { position: absolute; left: 0; top: 0; width: 84px; height: 84px; margin: 0; }
+.dragbot .bot-shadow { display: none; }
+.dragbot .legs { position: absolute; left: 0; top: 70px; width: 84px; height: 40px; overflow: visible; }
+.dragbot .legs line { stroke: #4a515e; stroke-width: 5; stroke-linecap: round; }
+.dragbot .legs ellipse { fill: #2b3039; }
+.dragbot .legs g { transform-box: view-box; }
+#leg-l { transform-origin: 34px 2px; }
+#leg-r { transform-origin: 50px 2px; }
+
+body.dragging #island { opacity: 0; transform: translateX(-50%) scale(0.6); pointer-events: none; transition: opacity 120ms, transform 160ms; }
+body.dragging[data-edge='left'] #island,
+body.dragging[data-edge='right'] #island { transform: translateY(-50%) scale(0.6); }
+body.dragging .dragbot { opacity: 1; transition: opacity 120ms; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+
+/* soltou: voa até a borda, vira bolha, estoura e volta a ser barra */
+body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease var(--fly, 300ms); }
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 34% 30%, rgba(255, 255, 255, 0.85) 0 7%, rgba(255, 255, 255, 0.12) 22%, color-mix(in srgb, var(--level) 14%, transparent) 58%, color-mix(in srgb, var(--level) 55%, transparent) 100%);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45), 0 0 18px color-mix(in srgb, var(--level) 40%, transparent);
+}
+.bubble.pop { animation: bubble-pop 560ms cubic-bezier(0.3, 0.7, 0.4, 1) forwards; }
+@keyframes bubble-pop {
+  0% { opacity: 0; transform: scale(0.35); }
+  35% { opacity: 1; transform: scale(1.08); }
+  55% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 0; transform: scale(1.9); box-shadow: inset 0 0 0 0 rgba(255, 255, 255, 0), 0 0 0 transparent; }
+}
+.drop {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--level) 70%, #fff);
+  pointer-events: none;
+  animation: drop-fly 520ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+@keyframes drop-fly {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+}
+/* a barra nasce do estouro */
+#island.born { animation: born 460ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes born { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble.pop, .drop, #island.born { animation-duration: 1ms; }
+}

@@ -14,6 +14,15 @@
         <span id="summary"></span>
       </div>
 
+      <!-- alerta grave chegando: a própria barra cresce e mostra -->
+      <div id="noticebox" class="noticebox" aria-live="assertive">
+        <span class="light" aria-hidden="true"><span class="beam"></span><span class="core"></span></span>
+        <div class="notice-text">
+          <div class="notice-meta" id="notice-meta"></div>
+          <div class="notice-title" id="notice-title"></div>
+        </div>
+      </div>
+
       <!-- aberta -->
       <div id="panel" aria-hidden="true">
         <header>
@@ -61,15 +70,15 @@
       </div>
     </div>
 
-    <!-- caixinha de alerta grave, embaixo da barra recolhida -->
-    <div id="notice" class="notice" role="alert" aria-live="assertive" hidden>
-      <span class="notice-bar" aria-hidden="true"></span>
-      <div class="notice-text">
-        <div class="notice-meta" id="notice-meta"></div>
-        <div class="notice-title" id="notice-title"></div>
-      </div>
-      <button id="notice-close" class="notice-close" title="Fechar" aria-label="Fechar">✕</button>
+    <!-- arrastando: a barra vira um robozinho que balança as perninhas -->
+    <div id="dragbot" class="dragbot" aria-hidden="true">
+      <span class="bot-slot" id="drag-bot"></span>
+      <svg class="legs" viewBox="0 0 84 40">
+        <g id="leg-l"><line x1="34" y1="2" x2="34" y2="24" /><ellipse cx="34" cy="28" rx="7" ry="4.5" /></g>
+        <g id="leg-r"><line x1="50" y1="2" x2="50" y2="24" /><ellipse cx="50" cy="28" rx="7" ry="4.5" /></g>
+      </svg>
     </div>
+    <div id="bubble" class="bubble" aria-hidden="true"></div>
 
     <script src="bot.js"></script>
     <script src="island.js"></script>

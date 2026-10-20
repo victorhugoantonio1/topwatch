@@ -422,17 +422,12 @@ if (topwatch.onNotice) topwatch.onNotice(showNotice);
 // ---------- borda onde a barra fica ----------
 if (topwatch.onDock) topwatch.onDock((edge) => (document.body.dataset.edge = edge));
 
-// ---------- arrastar: vira um robozinho com perninhas e, ao soltar, estoura numa bolha e volta a ser barra ----------
+// ---------- arrastar: a barra vira o Vigia de corpo inteiro; ao soltar, ele mergulha e vira a barra ----------
 const dragbotEl = $('dragbot');
-const dragBot = createBot($('drag-bot'));
-const legL = $('leg-l');
-const legR = $('leg-r');
-const bubble = $('bubble');
+const buddy = createBuddy(dragbotEl);
+const ripple = $('ripple');
 let press = null; // { x, y, id, el }
 let dragging = false;
-let flying = false;
-let vel = { x: 0, y: 0 };
-const phys = { tilt: 0, l: 0, r: 0, t: 0 };
 
 function dragZone(target) {
   if (target.closest('button, .tab, .row, #list, input, a')) return false;
@@ -470,15 +465,11 @@ function startDrag() {
   hideNotice();
   island.classList.remove('expanded');
   $('panel').setAttribute('aria-hidden', 'true');
-  dragbotEl.classList.remove('flying');
+  dragbotEl.className = 'dragbot';
   dragbotEl.style.transform = '';
-  dragbotEl.style.opacity = '';
-  vel = { x: 0, y: 0 };
   document.body.classList.add('dragging');
-  dragBot.setMood('watch');
-  dragBot.jolt();
+  buddy.start();
   topwatch.dragStart();
-  requestAnimationFrame(physicsLoop);
 }
 
 function endDrag() {
@@ -486,79 +477,58 @@ function endDrag() {
   topwatch.dragEnd();
 }
 
-if (topwatch.onDragMove) topwatch.onDragMove((v) => (vel = { x: v.vx, y: v.vy }));
+if (topwatch.onDragMove) topwatch.onDragMove((v) => buddy.setVelocity(v.vx, v.vy));
 
-// física das perninhas: o corpo inclina pro lado do movimento, as pernas ficam pra trás e "correm" quando vai rápido
-function physicsLoop(now) {
-  if (!dragging && !flying) return;
-  const clamp = (v, a) => Math.max(-a, Math.min(a, v));
-  const speed = Math.hypot(vel.x, vel.y);
-  phys.t = now;
-  const tiltTarget = clamp(vel.x * 0.025, 26);
-  phys.tilt += (tiltTarget - phys.tilt) * 0.18;
-  const trail = clamp(-vel.x * 0.045, 50) + (vel.y < -200 ? 0 : 0);
-  const run = speed > 140 ? Math.sin(now / 55) * Math.min(32, speed * 0.04) : 0;
-  const dangle = Math.sin(now / 420) * 4; // parado no ar, balança devagar
-  phys.l += (trail + run + dangle - phys.l) * 0.25;
-  phys.r += (trail - run + dangle - phys.r) * 0.25;
-  legL.style.transform = `rotate(${phys.l}deg)`;
-  legR.style.transform = `rotate(${phys.r}deg)`;
-  if (!flying) dragbotEl.style.transform = `rotate(${phys.tilt}deg)`;
-  dragBot.pose(clamp(vel.x / 700, 1), clamp(vel.y / 900, 1) * 0.6);
-  vel = { x: vel.x * 0.92, y: vel.y * 0.92 }; // sem mensagem nova, desacelera
-  requestAnimationFrame(physicsLoop);
-}
+// ponto da pílula e um ponto "de pouso" logo ao lado dela, dentro da tela, em cada borda
+const PILL = { top: [320, 15], bottom: [320, 315], left: [15, 165], right: [625, 165] };
+const PERCH = { top: [320, 92], bottom: [320, 238], left: [92, 165], right: [548, 165] };
+let landing = null;
 
-// soltou: o robozinho voa até onde a pílula vai ficar (a janela anda junto)
+// soltou: voa até perto da borda (a janela anda junto até a posição final)
 if (topwatch.onDragDrop) {
   topwatch.onDragDrop((d) => {
-    flying = true;
-    const r = dragbotEl.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + 50;
+    landing = d.edge;
+    const [px, py] = PERCH[d.edge];
+    // o ponto de pega do boneco (topo da antena) fica no centro da janela: 320, 165 - 26 + 14
+    const gx = 320;
+    const gy = 153;
     dragbotEl.style.setProperty('--fly', `${d.ms}ms`);
     dragbotEl.classList.add('flying');
-    dragbotEl.style.transform = `translate(${d.x - cx}px, ${d.y - cy}px) scale(0.45)`;
-    dragbotEl.style.opacity = '0';
-    bubble.style.left = `${d.x}px`;
-    bubble.style.top = `${d.y}px`;
-    bubble.dataset.edge = d.edge;
+    // pousa com o corpo (não a antena) no ponto de pouso
+    dragbotEl.style.transform = `translate(${px - gx}px, ${py - gy - 60}px) scale(0.8)`;
   });
 }
 
-// chegou: troca a borda, estoura a bolha e a barra nasce
+// chegou: mergulha na barra; o olho dele vira a luz da pílula e a barra se abre a partir dali
 if (topwatch.onDragLanded) {
   topwatch.onDragLanded((d) => {
-    document.body.dataset.edge = d.edge;
-    const pill = { top: [320, 15], bottom: [320, 315], left: [15, 165], right: [625, 165] }[d.edge];
-    bubble.style.left = `${pill[0]}px`;
-    bubble.style.top = `${pill[1]}px`;
-    bubble.classList.remove('pop');
-    void bubble.offsetWidth;
-    bubble.classList.add('pop');
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + Math.random() * 0.4;
-      const dist = 34 + Math.random() * 22;
-      const drop = document.createElement('span');
-      drop.className = 'drop';
-      drop.style.left = `${pill[0]}px`;
-      drop.style.top = `${pill[1]}px`;
-      drop.style.setProperty('--dx', `${Math.cos(a) * dist}px`);
-      drop.style.setProperty('--dy', `${Math.sin(a) * dist}px`);
-      drop.style.animationDelay = '200ms';
-      document.body.append(drop);
-      setTimeout(() => drop.remove(), 900);
-    }
+    const edge = d.edge || landing;
+    const [lx, ly] = PILL[edge];
+    const gx = 320;
+    const gy = 153;
+    dragbotEl.classList.remove('flying');
+    dragbotEl.classList.add('diving');
+    // o olho fica a ~38 px abaixo do ponto de pega; com escala 0.15 ele cai em cima da luz
+    dragbotEl.style.transform = `translate(${lx - gx}px, ${ly - gy - 38 * 0.15}px) scale(0.15)`;
     setTimeout(() => {
-      flying = false;
+      document.body.dataset.edge = edge;
+      island.classList.add('seed', 'flash');
       document.body.classList.remove('dragging');
-      dragbotEl.classList.remove('flying');
-      dragbotEl.style.transform = '';
-      island.classList.remove('born');
+      ripple.style.left = `${lx}px`;
+      ripple.style.top = `${ly}px`;
+      ripple.classList.remove('go');
+      void ripple.offsetWidth;
+      ripple.classList.add('go');
       void island.offsetWidth;
-      island.classList.add('born');
+      requestAnimationFrame(() => island.classList.remove('seed')); // abre na pílula com a transição normal
+      setTimeout(() => island.classList.remove('flash'), 750);
+    }, 300);
+    setTimeout(() => {
+      buddy.stop();
+      dragbotEl.className = 'dragbot';
+      dragbotEl.style.transform = '';
       topwatch.setInteractive(island.matches(':hover'));
-    }, 230);
+    }, 420);
   });
 }
 

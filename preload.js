@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('topwatch', {
   onState: (fn) => ipcRenderer.on('state', (_e, s) => fn(s)),
   onPinned: (fn) => ipcRenderer.on('pinned', (_e, p) => fn(p)),
   onAlert: (fn) => ipcRenderer.on('alert', () => fn()),
+  onSound: (fn) => ipcRenderer.on('sound', () => fn()),
 
   // configurações
   getSettings: () => ipcRenderer.invoke('settings:get'),

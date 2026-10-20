@@ -13,6 +13,7 @@ const DEFAULTS = {
   demo: true,
   pollSeconds: 60,
   notify: true,
+  notifySound: true, // som do próprio TopWatch em alerta Alta/Desastre novo
   // display: 'both' (tudo) | 'zabbix' | id de um plugin; highlight: alerta grave toma a pílula; mascot: Vigia
   ui: { display: 'both', highlight: true, mascot: true },
   // servers: [{ id, name, url, token, auth: 'auto'|'header'|'body', insecure, enabled }]

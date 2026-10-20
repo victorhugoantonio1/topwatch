@@ -378,6 +378,16 @@ topwatch.onPinned((p) => {
   else collapse();
 });
 
+// som do alerta grave (sintetizado em scripts/alert-sound.py); toca mesmo com o Windows em silêncio de notificações
+const alertSound = new Audio('sounds/alerta.wav');
+alertSound.volume = 0.8;
+if (topwatch.onSound) {
+  topwatch.onSound(() => {
+    alertSound.currentTime = 0;
+    alertSound.play().catch(() => {});
+  });
+}
+
 topwatch.onAlert(() => {
   heroBot.jolt();
   island.classList.remove('ping');

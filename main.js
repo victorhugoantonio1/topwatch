@@ -13,6 +13,7 @@ const {
   safeStorage,
   globalShortcut,
   dialog,
+  powerMonitor,
 } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -22,6 +23,7 @@ const zabbix = require('./src/zabbix');
 const { request } = require('./src/http');
 const pluginKit = require('./src/plugins');
 const demo = require('./src/demo');
+const dockMath = require('./src/dock');
 
 // Tamanho da janela da ilha. A janela é transparente e deixa o mouse passar,
 // então esse retângulo todo não atrapalha nada quando a ilha está recolhida.
@@ -225,34 +227,12 @@ function pluginState(p, cfg, extra) {
 // dock: { edge: 'top'|'bottom'|'left'|'right', displayId, displayBounds, ratio }
 // ratio = posição ao longo da borda (0 a 1; 0.5 = no meio). A janela tem sempre o mesmo tamanho;
 // a ilha se ancora na borda certa dentro dela (renderer/island.css, body[data-edge]).
-const EDGES = ['top', 'bottom', 'left', 'right'];
-
 function dockOf(cfg = store.get()) {
-  const d = (cfg.ui && cfg.ui.dock) || {};
-  return { edge: EDGES.includes(d.edge) ? d.edge : 'top', displayId: d.displayId, displayBounds: d.displayBounds, ratio: Number.isFinite(d.ratio) ? d.ratio : 0.5 };
-}
-
-function displayFor(dock) {
-  const all = screen.getAllDisplays();
-  const same = (a, b) => a && b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
-  return all.find((d) => d.id === dock.displayId) || all.find((d) => same(d.bounds, dock.displayBounds)) || screen.getPrimaryDisplay();
+  return dockMath.normalizeDock(cfg.ui && cfg.ui.dock);
 }
 
 function islandBounds(dock) {
-  const display = displayFor(dock);
-  const b = display.bounds;
-  const w = display.workArea; // embaixo e nas laterais, respeita a barra de tarefas
-  const clamp = (v, lo, hi) => Math.round(Math.min(Math.max(v, lo), hi));
-  let x;
-  let y;
-  if (dock.edge === 'top' || dock.edge === 'bottom') {
-    x = clamp(b.x + dock.ratio * b.width - ISLAND_W / 2, b.x, b.x + b.width - ISLAND_W);
-    y = dock.edge === 'top' ? b.y : w.y + w.height - ISLAND_H;
-  } else {
-    x = dock.edge === 'left' ? w.x : w.x + w.width - ISLAND_W;
-    y = clamp(w.y + dock.ratio * w.height - ISLAND_H / 2, w.y, w.y + w.height - ISLAND_H);
-  }
-  return { x, y, width: ISLAND_W, height: ISLAND_H };
+  return dockMath.islandBounds(dock, dockMath.displayFor(dock, screen.getAllDisplays(), screen.getPrimaryDisplay()), ISLAND_W, ISLAND_H);
 }
 
 function positionIsland() {
@@ -262,16 +242,8 @@ function positionIsland() {
   island.webContents.send('dock', dock.edge);
 }
 
-// soltou o robozinho: gruda na borda mais perto do ponto, na tela onde ele está
 function dockFromPoint(p) {
-  const display = screen.getDisplayNearestPoint(p);
-  const b = display.bounds;
-  const dist = { top: p.y - b.y, bottom: b.y + b.height - p.y, left: p.x - b.x, right: b.x + b.width - p.x };
-  const edge = EDGES.reduce((best, e) => (dist[e] < dist[best] ? e : best), 'top');
-  let ratio = edge === 'top' || edge === 'bottom' ? (p.x - b.x) / b.width : (p.y - b.y) / b.height;
-  ratio = Math.min(Math.max(ratio, 0), 1);
-  if (Math.abs(ratio - 0.5) < 0.05) ratio = 0.5; // perto do meio, centraliza
-  return { edge, displayId: display.id, displayBounds: { ...b }, ratio: Math.round(ratio * 1000) / 1000 };
+  return dockMath.dockFromPoint(p, screen.getDisplayNearestPoint(p));
 }
 
 function saveDock(dock) {
@@ -530,7 +502,17 @@ async function poll() {
       // servidor que falhou nesta rodada mantém os alertas da rodada anterior (sem piscar a lista)
       const zr = z.status === 'fulfilled' ? z.value : { items: [], errors: [{ serverId: '*', message: z.reason.message }], servers: 0 };
       const failed = new Set(zr.errors.map((er) => er.serverId));
-      const kept = state.zabbix.items.filter((it) => failed.has(it.serverId) || failed.has('*'));
+      const kept = state.zabbix.items.filter((it) => failed.has(it.serverId) || failed.has('*')).map((it) => ({ ...it, stale: true }));
+      // todos os servidores falharam nesta rodada: "sem conexão"
+      const allDown = cfg.zabbix.enabled && (z.status === 'rejected' || (zr.servers > 0 && failed.size >= zr.servers) || failed.has('*'));
+      if (allDown) {
+        failStreak++;
+        offlineSince = offlineSince || Date.now();
+      } else {
+        failStreak = 0;
+        offlineSince = null;
+        if (cfg.zabbix.enabled) lastOkAt = Date.now();
+      }
       const previous = new Map(state.plugins.map((p) => [p.id, p.items]));
       state = {
         demo: false,
@@ -540,6 +522,9 @@ async function poll() {
           items: [...zr.items, ...kept],
           error: zr.errors.length ? zr.errors.map((er) => er.message).join(' · ') : null,
           multi: zabbix.activeServers(cfg.zabbix).length > 1,
+          offlineSince,
+          lastOkAt,
+          retryAt: allDown ? Date.now() + nextDelay() : null,
         },
         plugins: plugins.map((p) => {
           const i = active.indexOf(p);
@@ -565,12 +550,46 @@ async function poll() {
   }
 }
 
+// ---------- agenda da coleta ----------
+// Tudo certo: coleta a cada pollSeconds. Servidores fora do ar: espera cada vez mais entre as
+// tentativas (2x, 4x, 8x, 16x, até 5 min), pra não martelar um servidor caído nem a rede.
+let failStreak = 0;
+let offlineSince = null;
+let lastOkAt = null;
+
+function nextDelay() {
+  const base = store.get().pollSeconds * 1000;
+  if (!failStreak) return base;
+  return Math.min(base * 2 ** Math.min(failStreak, 4), Math.max(base, 5 * 60 * 1000));
+}
+
+function schedule() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    await poll();
+    schedule();
+  }, nextDelay());
+}
+
 function restartPolling() {
-  clearInterval(pollTimer);
+  clearTimeout(pollTimer);
   firstPoll = true;
   seenProblems.clear();
-  poll();
-  pollTimer = setInterval(poll, store.get().pollSeconds * 1000);
+  failStreak = 0;
+  offlineSince = null;
+  poll().finally(schedule);
+}
+
+// voltou do modo suspenso ou desbloqueou a tela: atualiza na hora, sem esperar a próxima rodada
+function pollNow() {
+  failStreak = 0;
+  clearTimeout(pollTimer);
+  poll().finally(schedule);
+}
+
+function simulateDemo(fn) {
+  fn();
+  pollNow();
 }
 
 // ---------- bandeja ----------
@@ -732,7 +751,18 @@ function buildTrayMenu() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: hidden ? 'Mostrar a barra' : 'Esconder a barra', click: () => setHidden(!hidden) },
-      { label: 'Atualizar agora', click: () => poll() },
+      { label: 'Atualizar agora', click: () => pollNow() },
+      {
+        label: 'Simular (modo demo)',
+        enabled: isDemo(cfg),
+        submenu: [
+          { label: 'Alerta Alta', click: () => simulateDemo(() => demo.simulate(4)) },
+          { label: 'Desastre', click: () => simulateDemo(() => demo.simulate(5)) },
+          { type: 'separator' },
+          { label: 'Resolver tudo', click: () => simulateDemo(() => demo.resolveAll()) },
+          { label: 'Voltar aos dados de exemplo', click: () => simulateDemo(() => demo.reset()) },
+        ],
+      },
       {
         label: 'Voltar a barra pro topo da tela principal',
         click: () => {
@@ -801,7 +831,7 @@ ipcMain.on('island:interactive', (e, on) => {
 });
 
 ipcMain.handle('island:state', () => snapshotForUi());
-ipcMain.on('island:refresh', () => poll());
+ipcMain.on('island:refresh', () => pollNow());
 ipcMain.on('island:settings', () => openSettings());
 ipcMain.on('island:unpin', (e) => {
   if (fromWindow(e, island)) setPinned(false);
@@ -951,6 +981,9 @@ ipcMain.handle('settings:test', async (e, which, changes, id) => {
 app.on('second-instance', () => setHidden(false));
 
 app.whenReady().then(() => {
+  // voltou do modo suspenso ou desbloqueou a tela: atualiza na hora
+  powerMonitor.on('resume', () => pollNow());
+  powerMonitor.on('unlock-screen', () => pollNow());
   registerAppIdentity();
   ensureStartMenuShortcut();
   store = createStore({ dir: app.getPath('userData'), safeStorage });
@@ -982,7 +1015,7 @@ app.on('window-all-closed', (e) => e.preventDefault()); // vive na bandeja
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
-  clearInterval(pollTimer);
+  clearTimeout(pollTimer);
   clearInterval(trayTicker);
   for (const p of plugins) closePlugin(p);
 });

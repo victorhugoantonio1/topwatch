@@ -940,3 +940,9 @@ body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-be
 @media (prefers-reduced-motion: reduce) {
   #island.flash .light .core { animation-duration: 1ms; }
 }
+
+/* ---------- sem conexão ---------- */
+#summary b.off { color: var(--soft); }
+.row.stale { opacity: 0.55; }
+.row.stale .age::after { content: ' · desatualizado'; }
+.error .retry { color: var(--muted); }

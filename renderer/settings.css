@@ -451,3 +451,6 @@ h3.sub {
   .ring { animation: none; }
   .save-overlay, .save-card, .tick, .cross, .ring { transition: none !important; }
 }
+
+/* "Esquecer" ao lado de um token salvo */
+button.link.forget { margin-top: 6px; align-self: flex-start; font-size: 12px; }

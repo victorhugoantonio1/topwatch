@@ -461,3 +461,17 @@ test('Config: som do alerta grave vem ligado, inclusive em config antiga, e dá 
   store.save({ notifySound: false });
   assert.equal(createStore({ dir, safeStorage: fakeSafe }).get().notifySound, false);
 });
+
+test('Config: Esquecer apaga o token salvo do servidor e do plugin', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-forget-'));
+  const store = createStore({ dir, safeStorage: fakeSafe, plugins: [FAKE_PLUGIN] });
+  store.save({ zabbix: { enabled: true, servers: [{ id: 'a', name: 'Z', url: 'https://z', token: 'segredo' }] }, plugins: { [FAKE_PLUGIN.id]: { enabled: true, token: 'ptok' } } });
+  // campo vazio = mantém
+  store.save({ zabbix: { servers: [{ id: 'a', name: 'Z', url: 'https://z', token: '' }] } });
+  assert.equal(store.get().zabbix.servers[0].token, 'segredo');
+  // esquecer = apaga
+  store.save({ zabbix: { servers: [{ id: 'a', name: 'Z', url: 'https://z', token: '' }] }, plugins: { [FAKE_PLUGIN.id]: { token: '' } }, forget: ['zabbix.servers.a.token', `plugins.${FAKE_PLUGIN.id}.token`] });
+  assert.equal(store.get().zabbix.servers[0].token, '');
+  assert.equal(store.get().plugins[FAKE_PLUGIN.id].token, '');
+  assert.equal('forget' in store.get(), false);
+});

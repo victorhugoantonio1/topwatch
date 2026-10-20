@@ -890,57 +890,49 @@ body[data-edge='right'] #pill { inset: 0 0 0 auto; }
 body[data-edge='left'] #summary,
 body[data-edge='right'] #summary { min-height: 0; max-height: 100%; }
 
-/* ---------- arrastando: o Vigia de corpo inteiro ---------- */
+/* ---------- arrastando: a cabeça do Vigia ---------- */
 
+/* posição fixa em px (não em %): a janela se move junto com o cursor e a pega fica sempre no mesmo ponto */
 .dragbot {
   position: absolute;
-  left: calc(50% - 60px);
-  top: calc(50% - 26px); /* o ponto de pega (topo da antena) fica no cursor */
-  width: 120px;
-  height: 170px;
+  left: 288px; /* 320 - 32: centro da janela */
+  top: 151px; /* 165 - 14: o topo da cabeça fica no cursor */
+  width: 64px;
+  height: 59px;
   opacity: 0;
   pointer-events: none;
-  transform-origin: 60px 14px;
+  transform-origin: 32px 33.6px; /* centro do visor */
 }
-.buddy { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.45)); }
-.buddy .bd-chest, .buddy .bd-tip, .buddy .bd-eye-core { fill: var(--level); }
-.buddy .bd-chest-glow, .buddy .bd-tip-glow, .buddy .bd-eye-glow { fill: var(--level); opacity: 0.75; }
-.buddy .bd-eye-happy { stroke: var(--level); opacity: 0; }
-.buddy.happy .bd-eye-core, .buddy.happy .bd-eye-glow { opacity: 0; }
-.buddy.happy .bd-eye-happy { opacity: 1; }
+.buddy { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.buddy .bd-tip, .buddy .bd-eye-core { fill: var(--level); }
+.buddy .bd-tip-glow, .buddy .bd-eye-glow { fill: var(--level); opacity: 0.7; }
+.buddy .bd-eye-shut { stroke: var(--level); opacity: 0; }
+.buddy .bd-eye-core, .buddy .bd-eye-glow, .buddy .bd-eye-shut { transition: opacity 120ms; }
+.buddy.shut .bd-eye-core, .buddy.shut .bd-eye-glow { opacity: 0; }
+.buddy.shut .bd-eye-shut { opacity: 1; }
+.buddy .bd-shellparts, .buddy .bd-antenna { transition: opacity 220ms ease; }
 
 body.dragging #island { opacity: 0; pointer-events: none; transition: opacity 120ms; }
-body.dragging .dragbot { opacity: 1; transition: opacity 120ms; }
+body.dragging .dragbot { opacity: 1; transition: opacity 140ms; }
 body.dragging, body.dragging * { cursor: grabbing !important; }
 
-/* soltou: voa até perto da borda */
-body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-bezier(0.22, 1, 0.36, 1); }
-/* e mergulha na barra: encolhe até virar só o olho, que vira a luz da pílula */
-body.dragging .dragbot.diving { transition: transform 340ms cubic-bezier(0.55, 0, 0.8, 0.3), opacity 120ms ease 240ms; opacity: 0; }
+/* soltou: a cabeça voa até o lugar da pílula e perde a casca; sobra o visor escuro com o olho, que é a própria pílula */
+body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-bezier(0.3, 0.9, 0.3, 1); }
+.dragbot.flying .bd-shellparts, .dragbot.flying .bd-antenna { opacity: 0; transition-delay: 60ms; }
+.dragbot.flying .buddy { filter: none; }
 
-/* a barra nasce do ponto onde ele mergulhou: um botãozinho redondo que se abre na pílula */
-#island.seed { width: 30px !important; height: 30px !important; border-radius: 15px !important; transition: none !important; }
-#island.flash .light .core { animation: light-flash 700ms ease-out; }
+/* e a pílula se abre a partir do visor */
+#island.seed { width: 40px !important; height: 30px !important; border-radius: 15px !important; transition: none !important; }
+body[data-edge='left'] #island.seed,
+body[data-edge='right'] #island.seed { width: 30px !important; height: 40px !important; }
+#island.seed #summary { opacity: 0; }
+#summary { transition: opacity 220ms ease 140ms; }
+#island.flash .light .core { animation: light-flash 600ms ease-out; }
 @keyframes light-flash {
-  0% { transform: scale(2.4); box-shadow: 0 0 22px 6px var(--level); }
+  0% { transform: scale(1.7); box-shadow: 0 0 16px 3px var(--level); }
   100% { transform: scale(1); box-shadow: 0 0 10px var(--level); }
-}
-.ripple {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  margin: -15px 0 0 -15px;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--level) 70%, transparent);
-}
-.ripple.go { animation: ripple 650ms cubic-bezier(0.2, 0.8, 0.3, 1); }
-@keyframes ripple {
-  from { opacity: 0.9; transform: scale(0.6); }
-  to { opacity: 0; transform: scale(3.2); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ripple.go, #island.flash .light .core { animation-duration: 1ms; }
+  #island.flash .light .core { animation-duration: 1ms; }
 }

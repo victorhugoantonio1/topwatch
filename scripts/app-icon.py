@@ -1,7 +1,7 @@
 """Gera o ícone do app (assets/icon.png, 512 px): o Vigia sobre um ladrilho escuro, o mesmo do site.
 
 Uso: python scripts/app-icon.py   (precisa do Pillow)
-O electron-builder usa esse PNG pra montar o .ico do instalador e do atalho.
+O electron-builder usa o PNG no instalador; o .ico vai no atalho que o próprio app cria fora do instalador.
 """
 
 import importlib.util
@@ -33,4 +33,6 @@ bot = tray.draw(tray.LEVELS["ok"], tray.FRAMES["x0"], 360)
 tile.alpha_composite(bot, ((S - 360) // 2, (S - 360) // 2 + 4))
 out = HERE.parent / "assets" / "icon.png"
 tile.save(out, optimize=True)
-print(f"ícone salvo em {out}")
+# .ico pro atalho do menu Iniciar que o app cria quando roda sem instalador (npm start / portátil)
+tile.save(out.with_suffix(".ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+print(f"ícone salvo em {out} e {out.with_suffix('.ico')}")

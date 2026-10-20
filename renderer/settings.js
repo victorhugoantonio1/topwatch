@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const FIELDS = [
   'demo',
   'notify',
+  'notifySound',
   'pollSeconds',
   'ui.display',
   'ui.highlight',

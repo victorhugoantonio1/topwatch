@@ -452,3 +452,12 @@ test('Plugins: item do plugin é limpo antes de chegar na barra', () => {
   assert.equal(it.since, null);
   assert.equal(it.extra, undefined);
 });
+
+test('Config: som do alerta grave vem ligado, inclusive em config antiga, e dá pra desligar', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tw-som-'));
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({ notify: true, pollSeconds: 60 }));
+  const store = createStore({ dir, safeStorage: fakeSafe });
+  assert.equal(store.get().notifySound, true);
+  store.save({ notifySound: false });
+  assert.equal(createStore({ dir, safeStorage: fakeSafe }).get().notifySound, false);
+});

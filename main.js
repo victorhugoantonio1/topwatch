@@ -59,7 +59,34 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
 
-app.setAppUserModelId('io.github.victorhugoantonio1.topwatch'); // notificações no Windows
+// ---------- identidade no Windows (nome e ícone nas notificações) ----------
+// O Windows mostra nas notificações o nome e o ícone do atalho do menu Iniciar que tem o mesmo
+// AppUserModelID do app. O instalador (.exe/.msi) cria esse atalho. Rodando sem instalador
+// (npm start ou a versão portátil) não existe atalho e a notificação aparece como "Electron";
+// por isso o próprio app cria um atalho com o ID certo.
+const APP_ID = 'io.github.victorhugoantonio1.topwatch';
+const PORTABLE_EXE = process.env.PORTABLE_EXECUTABLE_FILE;
+const APP_USER_MODEL_ID = app.isPackaged ? APP_ID : `${APP_ID}.dev`;
+app.setAppUserModelId(APP_USER_MODEL_ID);
+
+function ensureStartMenuShortcut() {
+  if (process.platform !== 'win32' || (app.isPackaged && !PORTABLE_EXE)) return;
+  try {
+    const dir = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs');
+    const link = path.join(dir, app.isPackaged ? 'TopWatch.lnk' : 'TopWatch (dev).lnk');
+    const options = {
+      target: PORTABLE_EXE || process.execPath,
+      args: PORTABLE_EXE ? '' : `"${app.getAppPath()}"`,
+      icon: path.join(__dirname, 'assets', 'icon.ico'),
+      iconIndex: 0,
+      appUserModelId: APP_USER_MODEL_ID,
+      description: 'TopWatch',
+    };
+    shell.writeShortcutLink(link, fs.existsSync(link) ? 'replace' : 'create', options);
+  } catch (err) {
+    console.warn('não deu pra criar o atalho do menu Iniciar:', err.message);
+  }
+}
 
 // ---------- plugins ----------
 
@@ -145,6 +172,7 @@ function createIsland() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      autoplayPolicy: 'no-user-gesture-required', // o som do alerta toca sem clique
     },
   });
   island.setAlwaysOnTop(true, 'screen-saver');
@@ -228,12 +256,17 @@ function notifyNewProblems(items) {
   const cfg = store.get();
   const fresh = items.filter((p) => !seenProblems.has(p.id));
   items.forEach((p) => seenProblems.add(p.id));
-  if (firstPoll || !cfg.notify || !Notification.isSupported()) return;
-  for (const p of fresh.filter((x) => x.severity >= 4).slice(0, 3)) {
+  if (firstPoll) return;
+  const grave = fresh.filter((x) => x.severity >= 4);
+  // o som é do próprio TopWatch (toca na barra), igual em qualquer Windows; a notificação fica muda pra não tocar dois
+  if (grave.length && cfg.notifySound && island && !island.isDestroyed()) island.webContents.send('sound');
+  if (!cfg.notify || !Notification.isSupported()) return;
+  for (const p of grave.slice(0, 3)) {
     const n = new Notification({
       title: `${p.severityLabel}: ${p.hosts.join(', ') || 'Zabbix'}`,
       body: p.title,
-      silent: false,
+      icon: path.join(__dirname, 'assets', 'icon.png'),
+      silent: true,
     });
     n.on('click', () => {
       if (allowedUrls.has(p.url)) shell.openExternal(p.url);
@@ -640,6 +673,7 @@ ipcMain.handle('settings:test', async (e, which, changes, id) => {
 app.on('second-instance', () => setHidden(false));
 
 app.whenReady().then(() => {
+  ensureStartMenuShortcut();
   store = createStore({ dir: app.getPath('userData'), safeStorage });
   loadAllPlugins();
 

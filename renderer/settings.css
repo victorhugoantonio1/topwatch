@@ -405,3 +405,49 @@ h3.sub {
 #sound-result:empty {
   display: none;
 }
+
+/* ---------- confirmação de salvar ---------- */
+.save-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 8, 10, 0.62);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.save-overlay[hidden] { display: none; }
+.save-overlay.on { opacity: 1; }
+.save-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  transform: scale(0.92);
+  transition: transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.save-overlay.on .save-card { transform: scale(1); }
+.save-mark { width: 92px; height: 92px; overflow: visible; }
+.save-mark circle, .save-mark path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ring-track { stroke: rgba(255, 255, 255, 0.1); stroke-width: 4; }
+.ring { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 176; stroke-dashoffset: 132; transform-origin: 32px 32px; animation: save-spin 0.9s linear infinite; }
+.tick { stroke: var(--accent-ink); stroke-width: 5; stroke-dasharray: 40; stroke-dashoffset: 40; }
+.cross { stroke: #fff; stroke-width: 5; stroke-dasharray: 26; stroke-dashoffset: 26; }
+.save-text { margin: 0; font-size: 15px; font-weight: 600; color: var(--text, #f1f2f4); min-height: 20px; text-align: center; max-width: 360px; }
+
+/* deu certo: o anel fecha, enche de verde e o check se desenha */
+.save-overlay.done .ring { animation: none; stroke-dashoffset: 0; fill: var(--accent); transition: stroke-dashoffset 260ms ease, fill 220ms ease 180ms; }
+.save-overlay.done .tick { stroke-dashoffset: 0; transition: stroke-dashoffset 360ms cubic-bezier(0.65, 0, 0.35, 1) 320ms; }
+.save-overlay.done .save-mark { animation: save-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 300ms; }
+/* deu errado: anel vermelho com um X */
+.save-overlay.fail .ring { animation: none; stroke: #ff6268; stroke-dashoffset: 0; fill: #ff6268; transition: fill 200ms ease; }
+.save-overlay.fail .cross { stroke-dashoffset: 0; transition: stroke-dashoffset 300ms ease 150ms; }
+
+@keyframes save-spin { to { transform: rotate(360deg); } }
+@keyframes save-pop { 50% { transform: scale(1.08); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ring { animation: none; }
+  .save-overlay, .save-card, .tick, .cross, .ring { transition: none !important; }
+}

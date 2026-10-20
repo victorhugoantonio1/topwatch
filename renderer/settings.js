@@ -368,16 +368,49 @@ async function runTest(which, id, button, out) {
 }
 
 let savedTimer;
+const overlay = $('save-overlay');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function showSaving() {
+  overlay.className = 'save-overlay';
+  $('save-text').textContent = 'Salvando…';
+  overlay.hidden = false;
+  void overlay.offsetWidth;
+  overlay.classList.add('on');
+}
+async function finishSaving(ok, message) {
+  overlay.classList.add(ok ? 'done' : 'fail');
+  $('save-text').textContent = ok ? 'Salvo' : message || 'Não deu pra salvar.';
+  await wait(ok ? 1300 : 2600);
+  overlay.classList.remove('on');
+  await wait(240);
+  overlay.hidden = true;
+  overlay.className = 'save-overlay';
+}
+overlay.addEventListener('click', () => {
+  // erro: clicar fecha na hora
+  if (overlay.classList.contains('fail')) overlay.classList.remove('on');
+});
+
 $('save').addEventListener('click', async () => {
   const btn = $('save');
   btn.disabled = true;
-  const res = await topwatch.saveSettings(readForm());
+  showSaving();
+  const started = Date.now();
+  let res;
+  try {
+    res = await topwatch.saveSettings(readForm());
+  } catch (err) {
+    res = { ok: false, message: err.message };
+  }
+  await wait(Math.max(0, 650 - (Date.now() - started))); // o giro aparece um instante, mesmo salvando rápido
+  await finishSaving(res.ok, res.message);
   btn.disabled = false;
-  $('saved').textContent = res.ok ? 'Salvo. A barra já está usando as novas configurações.' : res.message;
+  $('saved').textContent = res.ok ? '' : res.message;
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => ($('saved').textContent = ''), 4000);
   // limpa os campos de segredo e recarrega os placeholders
-  fillForm(await topwatch.getSettings());
+  if (res.ok) fillForm(await topwatch.getSettings());
 });
 
 topwatch.getSettings().then(fillForm, () => fillForm(null));

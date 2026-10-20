@@ -167,11 +167,128 @@ function pluginState(p, cfg, extra) {
 
 // ---------- janelas ----------
 
-function positionIsland() {
-  if (!island) return;
-  const { x, y, width } = screen.getPrimaryDisplay().bounds;
-  island.setBounds({ x: Math.round(x + (width - ISLAND_W) / 2), y, width: ISLAND_W, height: ISLAND_H });
+// ---------- onde a barra fica ----------
+// dock: { edge: 'top'|'bottom'|'left'|'right', displayId, displayBounds, ratio }
+// ratio = posição ao longo da borda (0 a 1; 0.5 = no meio). A janela tem sempre o mesmo tamanho;
+// a ilha se ancora na borda certa dentro dela (renderer/island.css, body[data-edge]).
+const EDGES = ['top', 'bottom', 'left', 'right'];
+
+function dockOf(cfg = store.get()) {
+  const d = (cfg.ui && cfg.ui.dock) || {};
+  return { edge: EDGES.includes(d.edge) ? d.edge : 'top', displayId: d.displayId, displayBounds: d.displayBounds, ratio: Number.isFinite(d.ratio) ? d.ratio : 0.5 };
 }
+
+function displayFor(dock) {
+  const all = screen.getAllDisplays();
+  const same = (a, b) => a && b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+  return all.find((d) => d.id === dock.displayId) || all.find((d) => same(d.bounds, dock.displayBounds)) || screen.getPrimaryDisplay();
+}
+
+function islandBounds(dock) {
+  const display = displayFor(dock);
+  const b = display.bounds;
+  const w = display.workArea; // embaixo e nas laterais, respeita a barra de tarefas
+  const clamp = (v, lo, hi) => Math.round(Math.min(Math.max(v, lo), hi));
+  let x;
+  let y;
+  if (dock.edge === 'top' || dock.edge === 'bottom') {
+    x = clamp(b.x + dock.ratio * b.width - ISLAND_W / 2, b.x, b.x + b.width - ISLAND_W);
+    y = dock.edge === 'top' ? b.y : w.y + w.height - ISLAND_H;
+  } else {
+    x = dock.edge === 'left' ? w.x : w.x + w.width - ISLAND_W;
+    y = clamp(w.y + dock.ratio * w.height - ISLAND_H / 2, w.y, w.y + w.height - ISLAND_H);
+  }
+  return { x, y, width: ISLAND_W, height: ISLAND_H };
+}
+
+function positionIsland() {
+  if (!island || drag) return;
+  const dock = dockOf();
+  island.setBounds(islandBounds(dock));
+  island.webContents.send('dock', dock.edge);
+}
+
+// soltou o robozinho: gruda na borda mais perto do ponto, na tela onde ele está
+function dockFromPoint(p) {
+  const display = screen.getDisplayNearestPoint(p);
+  const b = display.bounds;
+  const dist = { top: p.y - b.y, bottom: b.y + b.height - p.y, left: p.x - b.x, right: b.x + b.width - p.x };
+  const edge = EDGES.reduce((best, e) => (dist[e] < dist[best] ? e : best), 'top');
+  let ratio = edge === 'top' || edge === 'bottom' ? (p.x - b.x) / b.width : (p.y - b.y) / b.height;
+  ratio = Math.min(Math.max(ratio, 0), 1);
+  if (Math.abs(ratio - 0.5) < 0.05) ratio = 0.5; // perto do meio, centraliza
+  return { edge, displayId: display.id, displayBounds: { ...b }, ratio: Math.round(ratio * 1000) / 1000 };
+}
+
+function saveDock(dock) {
+  store.save({ ui: { dock } });
+}
+
+// ---------- arrastar a barra ----------
+let drag = null;
+
+function moveWindowTo(target, ms, done) {
+  const from = island.getBounds();
+  const t0 = Date.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  const timer = setInterval(() => {
+    if (!island || island.isDestroyed()) return clearInterval(timer);
+    const t = Math.min(1, (Date.now() - t0) / ms);
+    const e = ease(t);
+    island.setPosition(Math.round(from.x + (target.x - from.x) * e), Math.round(from.y + (target.y - from.y) * e));
+    if (t >= 1) {
+      clearInterval(timer);
+      done();
+    }
+  }, 16);
+}
+
+function dragTick() {
+  if (!drag || !island || island.isDestroyed()) return;
+  const p = screen.getCursorScreenPoint();
+  const now = Date.now();
+  const dt = Math.max(1, now - drag.t);
+  const vx = ((p.x - drag.last.x) / dt) * 1000;
+  const vy = ((p.y - drag.last.y) / dt) * 1000;
+  drag.last = p;
+  drag.t = now;
+  island.setPosition(Math.round(p.x - ISLAND_W / 2), Math.round(p.y - ISLAND_H / 2));
+  island.webContents.send('drag:move', { vx, vy });
+}
+
+function finishDrag(dock) {
+  if (!drag) return;
+  clearInterval(drag.timer);
+  drag = null;
+  const target = islandBounds(dock);
+  // onde a pílula vai ficar dentro da janela; a janela anda até a borda e o robozinho voa até esse ponto junto
+  const pill = { top: [ISLAND_W / 2, 15], bottom: [ISLAND_W / 2, ISLAND_H - 15], left: [15, ISLAND_H / 2], right: [ISLAND_W - 15, ISLAND_H / 2] }[dock.edge];
+  island.webContents.send('drag:drop', { edge: dock.edge, x: pill[0], y: pill[1], ms: 300 });
+  moveWindowTo(target, 300, () => {
+    island.setBounds(target); // acerta o tamanho (trocar de monitor com escala diferente pode mexer nele)
+    island.webContents.send('drag:landed', { edge: dock.edge });
+  });
+}
+
+ipcMain.on('drag:start', (e) => {
+  if (!fromWindow(e, island) || drag) return;
+  if (pinned) setPinned(false);
+  island.setIgnoreMouseEvents(false);
+  const p = screen.getCursorScreenPoint();
+  drag = { last: p, t: Date.now(), prev: dockOf(), timer: setInterval(dragTick, 16) };
+  dragTick();
+});
+
+ipcMain.on('drag:end', (e) => {
+  if (!fromWindow(e, island) || !drag) return;
+  const dock = dockFromPoint(screen.getCursorScreenPoint());
+  saveDock(dock);
+  finishDrag(dock);
+});
+
+ipcMain.on('drag:cancel', (e) => {
+  if (fromWindow(e, island) && drag) finishDrag(drag.prev);
+});
 
 function setInteractive(on) {
   if (!island) return;
@@ -213,7 +330,10 @@ function createIsland() {
     if (!hidden) island.showInactive();
   });
   island.webContents.on('will-navigate', (e) => e.preventDefault());
-  island.webContents.on('did-finish-load', () => pushSoundToIsland());
+  island.webContents.on('did-finish-load', () => {
+    pushSoundToIsland();
+    island.webContents.send('dock', dockOf().edge);
+  });
   watchRenderer(island, 'barra');
   island.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
@@ -556,6 +676,14 @@ function buildTrayMenu() {
     Menu.buildFromTemplate([
       { label: hidden ? 'Mostrar a barra' : 'Esconder a barra', click: () => setHidden(!hidden) },
       { label: 'Atualizar agora', click: () => poll() },
+      {
+        label: 'Voltar a barra pro topo da tela principal',
+        click: () => {
+          const d = screen.getPrimaryDisplay();
+          saveDock({ edge: 'top', displayId: d.id, displayBounds: { ...d.bounds }, ratio: 0.5 });
+          positionIsland();
+        },
+      },
       { type: 'separator' },
       { label: 'Configurações…', click: openSettings },
       {
@@ -611,7 +739,7 @@ function fromWindow(e, win) {
 
 ipcMain.on('island:interactive', (e, on) => {
   if (!fromWindow(e, island)) return;
-  if (pinned) return;
+  if (pinned || drag) return;
   setInteractive(!!on);
 });
 
@@ -735,6 +863,7 @@ ipcMain.handle('settings:save', (e, changes) => {
   const onlyUi = JSON.stringify({ ...before, ui: null }) === JSON.stringify({ ...after, ui: null });
   if (onlyUi) broadcast();
   else restartPolling();
+  positionIsland(); // a borda pode ter mudado
   return { ok: true };
 });
 

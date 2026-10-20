@@ -18,7 +18,8 @@ const DEFAULTS = {
   soundFile: '', // som escolhido pelo usuário (cópia em userData/sounds); vazio = padrão
   soundLabel: '', // nome original do arquivo, só pra mostrar
   // display: 'both' (tudo) | 'zabbix' | id de um plugin; highlight: alerta grave toma a pílula; mascot: Vigia
-  ui: { display: 'both', highlight: true, mascot: true },
+  // dock: onde a barra fica (borda, monitor e posição ao longo da borda); null = topo da tela principal
+  ui: { display: 'both', highlight: true, mascot: true, dock: null },
   // servers: [{ id, name, url, token, auth: 'auto'|'header'|'body', insecure, enabled }]
   zabbix: { enabled: false, minSeverity: 2, servers: [] },
   // configuração de cada plugin, pelo id: { enabled, ...campos do plugin }
@@ -42,6 +43,14 @@ function merge(base, extra) {
 }
 
 // Intervalo da coleta: no mínimo 30 s pra não pesar nos servidores de ninguém.
+function cleanDock(d) {
+  const edge = ['top', 'bottom', 'left', 'right'].includes(d.edge) ? d.edge : 'top';
+  const ratio = Number.isFinite(Number(d.ratio)) ? Math.min(1, Math.max(0, Number(d.ratio))) : 0.5;
+  const b = d.displayBounds;
+  const displayBounds = b && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(b[k])) ? { x: b.x, y: b.y, width: b.width, height: b.height } : null;
+  return { edge, ratio, displayId: Number.isFinite(d.displayId) ? d.displayId : null, displayBounds };
+}
+
 function clampPoll(v) {
   return Math.min(600, Math.max(30, Number(v) || 60));
 }
@@ -236,6 +245,9 @@ function createStore({ dir, safeStorage, plugins = [] }) {
 
     next.pollSeconds = clampPoll(next.pollSeconds);
     if (!['both', 'zabbix', ...known.keys()].includes(next.ui.display)) next.ui.display = 'both';
+    // a tela de configurações manda só a borda; monitor e posição continuam os de antes
+    if (rest.ui && rest.ui.dock) next.ui.dock = cleanDock({ ...(current.ui.dock || {}), ...rest.ui.dock });
+    else next.ui.dock = current.ui.dock ? cleanDock(current.ui.dock) : null;
     return next;
   }
 

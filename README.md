@@ -14,7 +14,8 @@ Feito pra quem não quer ficar com uma aba do Zabbix aberta o dia inteiro. Outra
 - **Pílula inteligente**: recolhida, mostra a contagem (`3 alertas`) ou, se tiver algo grave, direto o que é (`Desastre · srv-app02`).
 - **Card de destaque**: ao abrir, o alerta mais grave vem em cima com **Reconhecer** (ack no Zabbix, com a mensagem "Reconhecido pelo TopWatch" no histórico do problema) e **Abrir**. O resto fica numa lista compacta.
 - **Vários Zabbix ao mesmo tempo**: cadastre quantos servidores quiser, de versões diferentes. Os alertas aparecem juntos, cada um com a etiqueta do servidor de onde veio, e o **Reconhecer** vai pro servidor certo. Se um cair, os outros continuam aparecendo.
-- **Aviso de alerta grave** (Alta ou Desastre): caixinha embaixo da barra, notificação do Windows e som. Cada um liga e desliga nas configurações, e o som pode ser um arquivo seu (.wav, .mp3, .ogg).
+- **Em qualquer borda e em qualquer monitor**: topo, embaixo ou nas laterais. Dá pra escolher nas configurações ou arrastar a barra: ela vira um robozinho de perninhas e gruda na borda onde você soltar.
+- **Aviso de alerta grave** (Alta ou Desastre): a barra cresce e mostra o alerta, notificação do Windows e som. Cada um liga e desliga nas configurações, e o som pode ser um arquivo seu (.wav, .mp3, .ogg).
 - **Vigia**: um robozinho que segue o mouse, olha pra linha sob o cursor, leva susto com alerta novo, fica vermelho no Desastre, acena quando você reconhece e desliga quando está tudo calmo. Clique nele pra cutucar (três vezes rápido e ele dá glitch). Dá pra desligar nas configurações.
 
   ![O Vigia reagindo: olha a lista, glitch ao ser cutucado, alarme com um Desastre, aceno ao reconhecer e desliga quando fica tudo calmo](docs/vigia.gif)

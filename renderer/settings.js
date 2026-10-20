@@ -11,6 +11,7 @@ const FIELDS = [
   'notifySound',
   'pollSeconds',
   'ui.display',
+  'ui.dock.edge',
   'ui.highlight',
   'ui.mascot',
   'zabbix.enabled',
@@ -328,7 +329,8 @@ function fillForm(data) {
   for (const id of FIELDS) {
     const input = $(id);
     if (!input) continue;
-    const value = getPath(config, id);
+    let value = getPath(config, id);
+    if (id === 'ui.dock.edge' && !value) value = 'top';
     if (input.type === 'checkbox') input.checked = !!value;
     else input.value = value ?? '';
   }

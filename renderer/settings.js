@@ -22,6 +22,23 @@ const NUMBERS = new Set(['pollSeconds', 'zabbix.minSeverity']);
 
 // campos dos plugins (montados a partir do que cada plugin declara)
 let pluginFields = []; // [{ id: 'plugins.<plugin>.<key>', type }]
+const forget = new Set(); // segredos marcados pra esquecer no próximo Salvar
+
+// botão "Esquecer" ao lado de um campo de segredo já salvo
+function forgetButton(input, key) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'link forget';
+  b.textContent = 'Esquecer';
+  b.title = 'Apaga o token salvo quando você clicar em Salvar';
+  b.addEventListener('click', () => {
+    forget.add(key);
+    input.value = '';
+    input.placeholder = 'Será apagado ao salvar';
+    b.remove();
+  });
+  input.insertAdjacentElement('afterend', b);
+}
 
 function getPath(obj, path) {
   return path.split('.').reduce((o, k) => (o ? o[k] : undefined), obj);
@@ -84,7 +101,9 @@ function serverCard(srv) {
   card.querySelector('.srv-name').value = srv.name || '';
   card.querySelector('.srv-enabled').checked = srv.enabled !== false;
   card.querySelector('.srv-url').value = srv.url || '';
-  card.querySelector('.srv-token').placeholder = savedTokens[srv.id] ? '•••••••• (salvo — deixe vazio pra manter)' : '';
+  const tokenInput = card.querySelector('.srv-token');
+  tokenInput.placeholder = savedTokens[srv.id] ? '•••••••• (salvo — deixe vazio pra manter)' : '';
+  if (savedTokens[srv.id]) forgetButton(tokenInput, `zabbix.servers.${srv.id}.token`);
   card.querySelector('.srv-auth').value = srv.auth || 'auto';
   card.querySelector('.srv-insecure').checked = !!srv.insecure;
 
@@ -273,6 +292,7 @@ function readForm() {
     setPath(out, id, value);
   }
   out.zabbix.servers = readServers();
+  out.forget = [...forget];
   out.plugins = {};
   for (const f of pluginFields) {
     const input = $(f.id);
@@ -343,7 +363,12 @@ function fillForm(data) {
       continue;
     }
     const input = $(key);
-    if (input) input.placeholder = has ? '•••••••• (salvo — deixe vazio pra manter)' : '';
+    if (input) {
+      input.placeholder = has ? '•••••••• (salvo — deixe vazio pra manter)' : '';
+      const next = input.nextElementSibling;
+      if (next && next.classList.contains('forget')) next.remove();
+      if (has) forgetButton(input, key);
+    }
   }
   renderServers(config.zabbix.servers || []);
   $('warn-crypto').classList.toggle('hidden', encryptionAvailable);
@@ -412,7 +437,10 @@ $('save').addEventListener('click', async () => {
   clearTimeout(savedTimer);
   savedTimer = setTimeout(() => ($('saved').textContent = ''), 4000);
   // limpa os campos de segredo e recarrega os placeholders
-  if (res.ok) fillForm(await topwatch.getSettings());
+  if (res.ok) {
+    forget.clear();
+    fillForm(await topwatch.getSettings());
+  }
 });
 
 topwatch.getSettings().then(fillForm, () => fillForm(null));

@@ -218,7 +218,9 @@ function createStore({ dir, safeStorage, plugins = [] }) {
   // Aplica o que veio da tela. Campo secreto vazio = manter o atual.
   function withChanges(changes) {
     // soundFile/soundLabel só mudam pelo seletor de som (processo principal), nunca pelo formulário
-    const { plugins: pluginChanges, soundFile: _sf, soundLabel: _sl, ...rest } = changes || {};
+    // forget: segredos que o usuário mandou esquecer ("zabbix.servers.<id>.token", "plugins.<id>.<campo>")
+    const { plugins: pluginChanges, soundFile: _sf, soundLabel: _sl, forget: forgetList, ...rest } = changes || {};
+    const forget = new Set(Array.isArray(forgetList) ? forgetList.map(String) : []);
     const next = merge(current, rest);
     next.plugins = clone(current.plugins);
 
@@ -227,7 +229,8 @@ function createStore({ dir, safeStorage, plugins = [] }) {
       const byId = new Map(current.zabbix.servers.map((s) => [s.id, s]));
       next.zabbix.servers = incomingServers.slice(0, 10).map((s, i) => {
         const old = byId.get(s.id);
-        return normalizeServer({ ...s, token: s.token || (old ? old.token : '') }, i);
+        const keep = forget.has(`zabbix.servers.${s.id}.token`) ? '' : old ? old.token : '';
+        return normalizeServer({ ...s, token: s.token || keep }, i);
       });
     } else {
       next.zabbix.servers = clone(current.zabbix.servers);
@@ -239,6 +242,7 @@ function createStore({ dir, safeStorage, plugins = [] }) {
       const merged = { ...current.plugins[id], ...values };
       for (const key of secretsOf(def)) {
         if (values[key] === undefined || values[key] === '') merged[key] = current.plugins[id] ? current.plugins[id][key] : '';
+        if (forget.has(`plugins.${id}.${key}`) && !values[key]) merged[key] = '';
       }
       next.plugins[id] = cleanPlugin(def, merged);
     }

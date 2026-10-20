@@ -110,7 +110,13 @@ island.addEventListener('mouseleave', () => {
 
 // ---------- pílula ----------
 
+// todos os servidores do Zabbix fora do ar (a coleta continua tentando, com espera crescente)
+function offline(s) {
+  return !s.demo && s.zabbix.enabled && !!s.zabbix.offlineSince;
+}
+
 function worstLevel(s) {
+  if (shows(s, 'zabbix') && offline(s)) return 'error';
   if (shows(s, 'zabbix')) {
     const open = openProblems(s);
     if (open.length) return String(Math.max(...open.map((p) => p.severity)));
@@ -130,6 +136,14 @@ function renderSummary(s) {
 
   if (!s.zabbix.enabled && !pluginTabs(s).length) {
     summary.append(el('span', null, 'Configure o TopWatch'));
+    return;
+  }
+
+  // sem conexão: os alertas que aparecem são da última vez que deu certo
+  if (shows(s, 'zabbix') && offline(s)) {
+    summary.append(el('b', 'off', 'Sem conexão'));
+    summary.append(el('span', 'sep', '·'));
+    summary.append(el('span', null, ago(s.zabbix.offlineSince) === 'agora' ? 'agora' : `há ${ago(s.zabbix.offlineSince)}`));
     return;
   }
 
@@ -207,7 +221,7 @@ function renderHero(item) {
 }
 
 function row(item) {
-  const li = el('li', `row${item.acknowledged ? ' ack' : ''}`);
+  const li = el('li', `row${item.acknowledged ? ' ack' : ''}${item.stale ? ' stale' : ''}`);
   li.title = item.title;
   const isZbx = item.source === 'zabbix';
   li.style.setProperty('--c', sevColor(isZbx ? item.severity : item.level));
@@ -234,6 +248,10 @@ function renderPanel(s) {
   const errBox = $('error');
   errBox.classList.toggle('hidden', !src.error);
   errBox.textContent = src.error || '';
+  if (!plugin && offline(s) && src.retryAt) {
+    const secs = Math.max(0, Math.round((src.retryAt - Date.now()) / 1000));
+    errBox.append(el('span', 'retry', secs > 60 ? ` Nova tentativa em ${Math.round(secs / 60)} min.` : ` Nova tentativa em ${secs} s.`));
+  }
 
   let items;
   let hero = null;
@@ -305,7 +323,12 @@ function renderHeader(s) {
     const c = document.querySelector(`.count[data-count="${p.id}"]`);
     if (c) c.textContent = p.items.length;
   }
-  $('updated').textContent = s.updatedAt ? (ago(s.updatedAt) === 'agora' ? 'atualizado agora' : `há ${ago(s.updatedAt)}`) : '';
+  if (offline(s)) {
+    const t = s.zabbix.lastOkAt;
+    $('updated').textContent = t ? `dados de ${ago(t) === 'agora' ? 'agora há pouco' : `há ${ago(t)}`}` : 'sem dados ainda';
+  } else {
+    $('updated').textContent = s.updatedAt ? (ago(s.updatedAt) === 'agora' ? 'atualizado agora' : `há ${ago(s.updatedAt)}`) : '';
+  }
   $('demo-badge').classList.toggle('hidden', !s.demo);
 }
 

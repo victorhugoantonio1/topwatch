@@ -130,6 +130,27 @@ function registerAppIdentity() {
   }
 }
 
+// Ícone da janela: no Windows o .ico (vários tamanhos, nítido na barra de tarefas).
+function windowIcon() {
+  return process.platform === 'win32' ? stableIcon('icon.ico') : path.join(__dirname, 'assets', 'icon.png');
+}
+
+// Botão na barra de tarefas: rodando pelo npm start, o Windows usava o ícone do electron.exe (o átomo).
+// setAppDetails diz pro Windows qual app é essa janela e qual ícone mostrar.
+function brandTaskbar(win) {
+  if (process.platform !== 'win32') return;
+  try {
+    win.setAppDetails({
+      appId: APP_USER_MODEL_ID,
+      appIconPath: stableIcon('icon.ico'),
+      appIconIndex: 0,
+      relaunchDisplayName: 'TopWatch',
+    });
+  } catch (err) {
+    logLine('[barra de tarefas]', err.message);
+  }
+}
+
 function ensureStartMenuShortcut() {
   if (process.platform !== 'win32' || (app.isPackaged && !PORTABLE_EXE)) return;
   try {
@@ -387,7 +408,7 @@ function openSettings() {
     title: 'TopWatch – Configurações',
     autoHideMenuBar: true,
     backgroundColor: '#14161a',
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: windowIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -396,6 +417,7 @@ function openSettings() {
     },
   });
   const win = settingsWin;
+  brandTaskbar(win);
   win.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

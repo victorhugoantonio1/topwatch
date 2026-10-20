@@ -14,6 +14,9 @@ const DEFAULTS = {
   pollSeconds: 60,
   notify: true,
   notifySound: true, // som do próprio TopWatch em alerta Alta/Desastre novo
+  notifyBar: true, // caixinha embaixo da barra em alerta Alta/Desastre novo
+  soundFile: '', // som escolhido pelo usuário (cópia em userData/sounds); vazio = padrão
+  soundLabel: '', // nome original do arquivo, só pra mostrar
   // display: 'both' (tudo) | 'zabbix' | id de um plugin; highlight: alerta grave toma a pílula; mascot: Vigia
   ui: { display: 'both', highlight: true, mascot: true },
   // servers: [{ id, name, url, token, auth: 'auto'|'header'|'body', insecure, enabled }]
@@ -205,7 +208,8 @@ function createStore({ dir, safeStorage, plugins = [] }) {
 
   // Aplica o que veio da tela. Campo secreto vazio = manter o atual.
   function withChanges(changes) {
-    const { plugins: pluginChanges, ...rest } = changes || {};
+    // soundFile/soundLabel só mudam pelo seletor de som (processo principal), nunca pelo formulário
+    const { plugins: pluginChanges, soundFile: _sf, soundLabel: _sl, ...rest } = changes || {};
     const next = merge(current, rest);
     next.plugins = clone(current.plugins);
 

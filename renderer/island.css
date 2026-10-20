@@ -832,3 +832,39 @@ header {
 .hero-meta .srv {
   margin: 0;
 }
+
+/* ---------- caixinha de alerta grave ---------- */
+
+.notice {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  width: 340px;
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 12px 11px 0;
+  border-radius: 14px;
+  background: var(--bg);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 16px 36px -10px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transform: translate(-50%, -12px);
+  opacity: 0;
+  transition:
+    transform 320ms var(--ease),
+    opacity 220ms ease;
+  --nc: var(--sev-4);
+}
+.notice[hidden] { display: grid; visibility: hidden; pointer-events: none; }
+.notice.on { transform: translate(-50%, 0); opacity: 1; }
+.notice[data-level='5'] { --nc: var(--sev-5); }
+.notice-bar { align-self: stretch; border-radius: 0 4px 4px 0; background: var(--nc); box-shadow: 0 0 12px var(--nc); }
+.notice-text { min-width: 0; }
+.notice-meta { font-size: 11.5px; color: var(--nc); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice-title { margin-top: 2px; font-size: 13px; color: var(--text, #e8ecf4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice-close { width: 22px; height: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; }
+.notice-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text, #e8ecf4); }
+#island.expanded ~ .notice { opacity: 0; pointer-events: none; }

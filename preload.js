@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('topwatch', {
   onPinned: (fn) => ipcRenderer.on('pinned', (_e, p) => fn(p)),
   onAlert: (fn) => ipcRenderer.on('alert', () => fn()),
   onSound: (fn) => ipcRenderer.on('sound', () => fn()),
+  onSoundData: (fn) => ipcRenderer.on('sound-data', (_e, d) => fn(d)),
+  onNotice: (fn) => ipcRenderer.on('notice', (_e, items) => fn(items)),
 
   // configurações
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -26,4 +28,7 @@ contextBridge.exposeInMainWorld('topwatch', {
   installPlugin: () => ipcRenderer.invoke('settings:install-plugin'),
   openPluginsFolder: () => ipcRenderer.send('settings:open-plugins-folder'),
   openPluginsSite: () => ipcRenderer.send('settings:open-plugins-site'),
+  pickSound: () => ipcRenderer.invoke('settings:pick-sound'),
+  resetSound: () => ipcRenderer.invoke('settings:reset-sound'),
+  testSound: () => ipcRenderer.send('settings:test-sound'),
 });

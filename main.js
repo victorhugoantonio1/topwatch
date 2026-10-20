@@ -59,6 +59,35 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 }
 
+// ---------- log ----------
+// userData/topwatch.log: erros do processo principal e das janelas (pra diagnosticar travamentos)
+function logLine(...parts) {
+  try {
+    const file = path.join(app.getPath('userData'), 'topwatch.log');
+    if (fs.existsSync(file) && fs.statSync(file).size > 512 * 1024) fs.renameSync(file, `${file}.1`);
+    fs.appendFileSync(file, `${new Date().toISOString()} ${parts.join(' ')}\n`);
+  } catch {
+    // log é ajuda, não pode derrubar o app
+  }
+}
+process.on('uncaughtException', (err) => logLine('[erro]', err.stack || err.message));
+process.on('unhandledRejection', (err) => logLine('[promessa]', (err && err.stack) || String(err)));
+
+function watchRenderer(win, name) {
+  const wc = win.webContents;
+  wc.on('render-process-gone', (_e, d) => {
+    logLine(`[${name}] processo da janela caiu: ${d.reason} (${d.exitCode})`);
+    if (!win.isDestroyed()) wc.reload(); // tela cinza: recarrega em vez de ficar parada
+  });
+  wc.on('unresponsive', () => logLine(`[${name}] janela não responde`));
+  wc.on('responsive', () => logLine(`[${name}] janela voltou a responder`));
+  wc.on('console-message', (e) => {
+    const level = e.level ?? e.params?.level;
+    if (level === 'error' || level === 3) logLine(`[${name}] ${e.message ?? e.params?.message}`);
+  });
+  wc.on('did-fail-load', (_e, code, desc) => logLine(`[${name}] não carregou: ${desc} (${code})`));
+}
+
 // ---------- identidade no Windows (nome e ícone nas notificações) ----------
 // O Windows mostra nas notificações o nome e o ícone do atalho do menu Iniciar que tem o mesmo
 // AppUserModelID do app. O instalador (.exe/.msi) cria esse atalho. Rodando sem instalador
@@ -184,6 +213,8 @@ function createIsland() {
     if (!hidden) island.showInactive();
   });
   island.webContents.on('will-navigate', (e) => e.preventDefault());
+  island.webContents.on('did-finish-load', () => pushSoundToIsland());
+  watchRenderer(island, 'barra');
   island.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
@@ -209,11 +240,15 @@ function openSettings() {
       sandbox: true,
     },
   });
-  settingsWin.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
-  settingsWin.webContents.on('will-navigate', (e) => e.preventDefault());
-  settingsWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  settingsWin.on('closed', () => {
-    settingsWin = null;
+  const win = settingsWin;
+  win.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  watchRenderer(win, 'configurações');
+  win.on('closed', () => {
+    // fechar e abrir rápido: o "closed" da janela velha chega depois da nova existir.
+    // Sem essa conferência ele apagava a referência da nova, e ela ficava sem dados e sem responder.
+    if (settingsWin === win) settingsWin = null;
   });
 }
 
@@ -258,22 +293,31 @@ function notifyNewProblems(items) {
   items.forEach((p) => seenProblems.add(p.id));
   if (firstPoll) return;
   const grave = fresh.filter((x) => x.severity >= 4);
-  // o som é do próprio TopWatch (toca na barra), igual em qualquer Windows; a notificação fica muda pra não tocar dois
-  if (grave.length && cfg.notifySound && island && !island.isDestroyed()) island.webContents.send('sound');
+  if (!grave.length) return;
+  if (island && !island.isDestroyed()) {
+    if (cfg.notifySound) island.webContents.send('sound');
+    if (cfg.notifyBar) {
+      island.webContents.send(
+        'notice',
+        grave.slice(0, 5).map((p) => ({ id: p.id, level: p.severity, label: p.severityLabel, host: p.hosts.join(', '), title: p.title })),
+      );
+    }
+  }
   if (!cfg.notify || !Notification.isSupported()) return;
   for (const p of grave.slice(0, 3)) {
     const n = new Notification({
       title: `${p.severityLabel}: ${p.hosts.join(', ') || 'Zabbix'}`,
       body: p.title,
       icon: path.join(__dirname, 'assets', 'icon.png'),
-      silent: true,
+      // com o som do TopWatch ligado, a notificação fica muda; desligado, vale o som do próprio Windows
+      silent: !!cfg.notifySound,
     });
     n.on('click', () => {
       if (allowedUrls.has(p.url)) shell.openExternal(p.url);
     });
     n.show();
   }
-  if (fresh.some((x) => x.severity >= 4) && island) island.webContents.send('alert');
+  if (island && !island.isDestroyed()) island.webContents.send('alert');
 }
 
 async function poll() {
@@ -545,6 +589,20 @@ function createTray() {
   startTrayAnimation();
 }
 
+// ---------- som do alerta ----------
+// Padrão: renderer/sounds/alerta.wav. O usuário pode escolher um arquivo dele; a cópia fica em userData/sounds.
+const SOUND_TYPES = { '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4' };
+function soundsDir() {
+  return path.join(app.getPath('userData'), 'sounds');
+}
+function pushSoundToIsland() {
+  if (!island || island.isDestroyed()) return;
+  const name = store.get().soundFile;
+  const file = name ? path.join(soundsDir(), path.basename(name)) : null;
+  if (!file || !fs.existsSync(file)) return island.webContents.send('sound-data', null);
+  island.webContents.send('sound-data', { mime: SOUND_TYPES[path.extname(file).toLowerCase()] || 'audio/mpeg', data: fs.readFileSync(file) });
+}
+
 // ---------- IPC ----------
 
 function fromWindow(e, win) {
@@ -598,6 +656,40 @@ ipcMain.handle('settings:get', (e) => {
     plugins: plugins.map((p) => p.info),
     pluginErrors: pluginErrors.map((er) => ({ folder: path.basename(er.dir), message: er.message })),
   };
+});
+
+ipcMain.handle('settings:pick-sound', async (e) => {
+  if (!fromWindow(e, settingsWin)) return { ok: false, message: 'Origem inválida' };
+  const pick = await dialog.showOpenDialog(settingsWin, {
+    title: 'Escolha o som do alerta',
+    properties: ['openFile'],
+    filters: [{ name: 'Áudio', extensions: Object.keys(SOUND_TYPES).map((x) => x.slice(1)) }],
+  });
+  if (pick.canceled || !pick.filePaths[0]) return { canceled: true };
+  const src = pick.filePaths[0];
+  const ext = path.extname(src).toLowerCase();
+  if (!SOUND_TYPES[ext]) return { ok: false, message: 'Use um arquivo .wav, .mp3, .ogg ou .m4a.' };
+  if (fs.statSync(src).size > 3 * 1024 * 1024) return { ok: false, message: 'O arquivo passa de 3 MB. Use um som curto.' };
+  fs.mkdirSync(soundsDir(), { recursive: true });
+  for (const old of fs.readdirSync(soundsDir())) fs.rmSync(path.join(soundsDir(), old), { force: true });
+  const name = `alerta${ext}`;
+  fs.copyFileSync(src, path.join(soundsDir(), name));
+  store.setFlag('soundFile', name);
+  store.setFlag('soundLabel', path.basename(src).slice(0, 80));
+  pushSoundToIsland();
+  return { ok: true, label: store.get().soundLabel };
+});
+
+ipcMain.handle('settings:reset-sound', (e) => {
+  if (!fromWindow(e, settingsWin)) return { ok: false };
+  store.setFlag('soundFile', '');
+  store.setFlag('soundLabel', '');
+  pushSoundToIsland();
+  return { ok: true };
+});
+
+ipcMain.on('settings:test-sound', (e) => {
+  if (fromWindow(e, settingsWin) && island && !island.isDestroyed()) island.webContents.send('sound');
 });
 
 // "Instalar plugin…": escolhe a pasta do plugin, copia pra pasta de plugins e recarrega

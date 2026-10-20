@@ -7,6 +7,7 @@ const $ = (id) => document.getElementById(id);
 const FIELDS = [
   'demo',
   'notify',
+  'notifyBar',
   'notifySound',
   'pollSeconds',
   'ui.display',
@@ -265,6 +266,7 @@ function readForm() {
   const out = {};
   for (const id of FIELDS) {
     const input = $(id);
+    if (!input) continue;
     let value = input.type === 'checkbox' ? input.checked : input.value.trim();
     if (NUMBERS.has(id)) value = Number(value);
     setPath(out, id, value);
@@ -281,8 +283,41 @@ function readForm() {
   return out;
 }
 
+function showSound(label) {
+  $('sound-name').textContent = label ? `Arquivo: ${label}` : 'Padrão do TopWatch';
+  $('sound-reset').classList.toggle('hidden', !label);
+}
+
+$('sound-test').addEventListener('click', () => topwatch.testSound());
+$('sound-pick').addEventListener('click', async () => {
+  const out = $('sound-result');
+  out.className = 'result';
+  out.textContent = '';
+  const res = await topwatch.pickSound();
+  if (res.canceled) return;
+  if (!res.ok) {
+    out.className = 'result fail';
+    out.textContent = res.message;
+    return;
+  }
+  showSound(res.label);
+  topwatch.testSound();
+});
+$('sound-reset').addEventListener('click', async () => {
+  await topwatch.resetSound();
+  showSound('');
+});
+
 function fillForm(data) {
+  if (!data || !data.config) {
+    // não veio nada do processo principal: avisa em vez de mostrar a tela vazia e tenta de novo
+    $('saved').textContent = 'Não consegui carregar as configurações. Tentando de novo…';
+    setTimeout(() => topwatch.getSettings().then(fillForm, () => {}), 800);
+    return;
+  }
+  $('saved').textContent = '';
   const { config, hasSecret, encryptionAvailable, forcedDemo, plugins = [], pluginErrors = [] } = data;
+  showSound(config.soundLabel);
   renderPlugins(plugins, pluginErrors); // antes de preencher: cria os campos e as opções
   for (const f of pluginFields) {
     const input = $(f.id);
@@ -292,6 +327,7 @@ function fillForm(data) {
   }
   for (const id of FIELDS) {
     const input = $(id);
+    if (!input) continue;
     const value = getPath(config, id);
     if (input.type === 'checkbox') input.checked = !!value;
     else input.value = value ?? '';
@@ -344,4 +380,4 @@ $('save').addEventListener('click', async () => {
   fillForm(await topwatch.getSettings());
 });
 
-topwatch.getSettings().then(fillForm);
+topwatch.getSettings().then(fillForm, () => fillForm(null));

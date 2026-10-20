@@ -483,10 +483,11 @@ if (topwatch.onDragMove) topwatch.onDragMove((v) => buddy.setVelocity(v.vx, v.vy
 
 // onde a luz da pílula fica dentro da janela, em cada borda
 const PILL = { top: [320, 15], bottom: [320, 315], left: [15, 165], right: [625, 165] };
-// centro do visor da cabeça, com a cabeça na posição de arrasto (veja .dragbot no CSS)
-const VISOR = [320, 184.6];
+// centro do olho da cabeça, com a cabeça na posição de arrasto (veja .dragbot no CSS)
+const EYE = [320, 184.6];
 
-// soltou: a cabeça abre o olho, voa até o lugar da pílula e perde a casca (a janela anda junto até a borda)
+// soltou: a cabeça abre o olho e voa até o lugar da luz da pílula, encolhendo; perde a casca, depois o visor,
+// e sobra só a cor do olho (a janela anda junto até a borda)
 if (topwatch.onDragDrop) {
   topwatch.onDragDrop((d) => {
     const [lx, ly] = PILL[d.edge];
@@ -494,11 +495,11 @@ if (topwatch.onDragDrop) {
     buddy.stop();
     dragbotEl.style.setProperty('--fly', `${d.ms}ms`);
     dragbotEl.classList.add('flying');
-    dragbotEl.style.transform = `translate(${lx - VISOR[0]}px, ${ly - VISOR[1]}px) scale(1.08)`;
+    dragbotEl.style.transform = `translate(${lx - EYE[0]}px, ${ly - EYE[1]}px) scale(0.7)`;
   });
 }
 
-// chegou: no lugar do visor aparece a pílula do mesmo tamanho, e ela se abre a partir dali
+// chegou: no lugar do olho fica só o ponto de luz da barra, e ela estica pro lado e mostra o conteúdo
 if (topwatch.onDragLanded) {
   topwatch.onDragLanded((d) => {
     document.body.dataset.edge = d.edge;

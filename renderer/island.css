@@ -944,5 +944,32 @@ body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-be
 /* ---------- sem conexão ---------- */
 #summary b.off { color: var(--soft); }
 .row.stale { opacity: 0.55; }
-.row.stale .age::after { content: ' · desatualizado'; }
 .error .retry { color: var(--muted); }
+.error.offline { background: rgba(255, 255, 255, 0.05); color: var(--soft); }
+.error.offline b { color: var(--text); font-weight: 600; }
+.error .detail { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.hero.stale { opacity: 0.6; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ---------- movimento da lista ---------- */
+.row { grid-template-columns: 8px 1fr auto auto 0; transition: grid-template-columns 160ms ease, background 160ms; }
+.row .go { opacity: 0; color: var(--muted); font-size: 12px; transition: opacity 140ms; }
+.row:hover { grid-template-columns: 8px 1fr auto auto 12px; }
+.row:hover .go { opacity: 1; }
+.row.enter { animation: row-in 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-8px); background: color-mix(in srgb, var(--c) 18%, transparent); }
+  60% { background: color-mix(in srgb, var(--c) 10%, transparent); }
+  to { opacity: 1; transform: none; background: transparent; }
+}
+.row.leave { animation: row-out 300ms cubic-bezier(0.4, 0, 0.6, 1) forwards; pointer-events: none; overflow: hidden; }
+@keyframes row-out {
+  to { opacity: 0; height: 0; margin-top: -2px; transform: translateX(12px); }
+}
+#list.scrolls { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); }
+.count { display: inline-block; }
+.count.tick { animation: tick 420ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes tick {
+  0% { transform: translateY(-5px) scale(1.25); color: var(--text); }
+  100% { transform: none; }
+}

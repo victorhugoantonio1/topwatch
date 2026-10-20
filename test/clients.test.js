@@ -475,3 +475,15 @@ test('Config: Esquecer apaga o token salvo do servidor e do plugin', () => {
   assert.equal(store.get().plugins[FAKE_PLUGIN.id].token, '');
   assert.equal('forget' in store.get(), false);
 });
+
+test('HTTP: erros de rede viram mensagem em português e guardam o código', () => {
+  const { friendly } = require('../src/http');
+  const u = new URL('https://zabbix.empresa.local/api_jsonrpc.php');
+  const e = Object.assign(new Error('connect ETIMEDOUT 10.0.0.1:443'), { code: 'ETIMEDOUT' });
+  const f = friendly(e, u);
+  assert.match(f.message, /não respondeu a tempo/);
+  assert.equal(f.code, 'ETIMEDOUT');
+  assert.match(friendly(Object.assign(new Error('x'), { code: 'SELF_SIGNED_CERT_IN_CHAIN' }), u).message, /autoassinado/);
+  const other = new Error('outra coisa');
+  assert.equal(friendly(other, u), other);
+});

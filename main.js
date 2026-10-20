@@ -98,6 +98,38 @@ const PORTABLE_EXE = process.env.PORTABLE_EXECUTABLE_FILE;
 const APP_USER_MODEL_ID = app.isPackaged ? APP_ID : `${APP_ID}.dev`;
 app.setAppUserModelId(APP_USER_MODEL_ID);
 
+// Os ícones precisam estar num caminho de verdade no disco (o Windows não lê de dentro do app.asar,
+// e a versão portátil roda de uma pasta temporária). Cópia na pasta de dados do app.
+function stableIcon(name) {
+  const dest = path.join(app.getPath('userData'), name);
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'assets', name));
+    if (!fs.existsSync(dest) || fs.statSync(dest).size !== data.length) fs.writeFileSync(dest, data);
+  } catch (err) {
+    logLine('[ícone]', err.message);
+  }
+  return dest;
+}
+
+// Nome e ícone que o Windows mostra no topo da notificação. Pra app sem pacote (npm start, portátil),
+// o jeito documentado é registrar o AppUserModelID em HKCU\Software\Classes\AppUserModelId\<id>.
+// Só o atalho não bastava: a notificação continuava com "Electron".
+function registerAppIdentity() {
+  if (process.platform !== 'win32') return;
+  const { execFile } = require('node:child_process');
+  const key = `HKCU\\Software\\Classes\\AppUserModelId\\${APP_USER_MODEL_ID}`;
+  const values = [
+    ['DisplayName', app.isPackaged ? 'TopWatch' : 'TopWatch (dev)'],
+    ['IconUri', stableIcon('icon.png')],
+    ['IconBackgroundColor', '00000000'],
+  ];
+  for (const [name, data] of values) {
+    execFile('reg', ['add', key, '/v', name, '/t', 'REG_SZ', '/d', data, '/f'], { windowsHide: true }, (err) => {
+      if (err) logLine('[identidade]', `não deu pra registrar ${name}:`, err.message);
+    });
+  }
+}
+
 function ensureStartMenuShortcut() {
   if (process.platform !== 'win32' || (app.isPackaged && !PORTABLE_EXE)) return;
   try {
@@ -106,14 +138,15 @@ function ensureStartMenuShortcut() {
     const options = {
       target: PORTABLE_EXE || process.execPath,
       args: PORTABLE_EXE ? '' : `"${app.getAppPath()}"`,
-      icon: path.join(__dirname, 'assets', 'icon.ico'),
+      icon: stableIcon('icon.ico'),
       iconIndex: 0,
       appUserModelId: APP_USER_MODEL_ID,
       description: 'TopWatch',
     };
-    shell.writeShortcutLink(link, fs.existsSync(link) ? 'replace' : 'create', options);
+    const ok = shell.writeShortcutLink(link, fs.existsSync(link) ? 'replace' : 'create', options);
+    if (!ok) logLine('[atalho] o Windows recusou criar', link);
   } catch (err) {
-    console.warn('não deu pra criar o atalho do menu Iniciar:', err.message);
+    logLine('[atalho]', err.message);
   }
 }
 
@@ -896,6 +929,7 @@ ipcMain.handle('settings:test', async (e, which, changes, id) => {
 app.on('second-instance', () => setHidden(false));
 
 app.whenReady().then(() => {
+  registerAppIdentity();
   ensureStartMenuShortcut();
   store = createStore({ dir: app.getPath('userData'), safeStorage });
   loadAllPlugins();

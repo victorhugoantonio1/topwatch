@@ -426,7 +426,7 @@ function isDemo(cfg) {
 
 // estado + preferências de exibição, que a ilha precisa pra se desenhar
 function snapshotForUi() {
-  return { ...state, ui: store ? store.get().ui : undefined };
+  return { ...state, history, ui: store ? store.get().ui : undefined };
 }
 
 function broadcast() {
@@ -473,6 +473,8 @@ async function poll() {
   if (polling) return;
   polling = true;
   const cfg = store.get();
+  const before = state.zabbix.items;
+  const wasFirst = firstPoll;
   try {
     if (isDemo(cfg)) {
       const snap = demo.snapshot();
@@ -542,12 +544,66 @@ async function poll() {
         }),
       };
     }
+    if (!wasFirst) {
+      const failedNow = new Set((state.zabbix.items || []).filter((it) => it.stale).map((it) => it.serverId));
+      const okServers = new Set(before.map((it) => it.serverId).filter((id) => !failedNow.has(id)));
+      if (!state.zabbix.offlineSince) recordResolved(before, state.zabbix.items, okServers);
+    }
     notifyNewProblems(state.zabbix.items);
     firstPoll = false;
   } finally {
     polling = false;
     broadcast();
   }
+}
+
+// ---------- histórico: alertas resolvidos nas últimas 24 h ----------
+// Guardado só no seu PC (userData/history.json). Entra aqui o alerta que sumiu do Zabbix entre
+// duas coletas que deram certo, ou seja, o problema normalizou.
+const HISTORY_MS = 24 * 60 * 60 * 1000;
+let history = [];
+function historyFile() {
+  return path.join(app.getPath('userData'), 'history.json');
+}
+function loadHistory() {
+  try {
+    const list = JSON.parse(fs.readFileSync(historyFile(), 'utf8'));
+    history = Array.isArray(list) ? list.filter((h) => h && Date.now() - h.resolvedAt < HISTORY_MS) : [];
+  } catch {
+    history = [];
+  }
+}
+let historySaveTimer = null;
+function saveHistory() {
+  clearTimeout(historySaveTimer);
+  historySaveTimer = setTimeout(() => {
+    fs.promises.writeFile(historyFile(), JSON.stringify(history)).catch((err) => logLine('[histórico]', err.message));
+  }, 500);
+}
+function recordResolved(before, after, okServers) {
+  const still = new Set(after.map((it) => it.id));
+  const now = Date.now();
+  let changed = false;
+  for (const it of before) {
+    if (still.has(it.id) || it.stale || !okServers.has(it.serverId)) continue;
+    history.unshift({
+      id: it.id,
+      title: it.title,
+      severity: it.severity,
+      severityLabel: it.severityLabel,
+      hosts: it.hosts,
+      serverName: it.serverName,
+      since: it.since,
+      resolvedAt: now,
+      url: it.url,
+      updates: (it.updates || []).slice(0, 3),
+    });
+    changed = true;
+  }
+  const fresh = history.filter((h) => now - h.resolvedAt < HISTORY_MS).slice(0, 200);
+  if (fresh.length !== history.length) changed = true;
+  history = fresh;
+  if (changed) saveHistory();
 }
 
 // ---------- agenda da coleta ----------
@@ -842,19 +898,23 @@ ipcMain.on('open-url', (_e, url) => {
   if (typeof url === 'string' && allowedUrls.has(url) && /^https?:\/\//i.test(url)) shell.openExternal(url);
 });
 
-ipcMain.handle('zabbix:ack', async (e, itemId) => {
+ipcMain.handle('zabbix:ack', async (e, itemId, note) => {
   if (!fromWindow(e, island)) return { ok: false, message: 'Origem inválida' };
   // só aceita alertas que estão na lista atual; o id já diz de qual servidor ele veio
   const item = state.zabbix.items.find((p) => p.id === itemId);
   if (!item) return { ok: false, message: 'Esse alerta não está mais aberto.' };
+  const typed = typeof note === 'string' ? note.trim().slice(0, 500) : '';
+  const message = typed || (store.get().ackMessage || '').trim() || zabbix.ACK_MESSAGE;
   try {
-    if (state.demo) demo.acknowledge(item.eventid);
+    if (state.demo) demo.acknowledge(item.eventid, message);
     else {
       const server = store.get().zabbix.servers.find((s) => s.id === item.serverId);
       if (!server) return { ok: false, message: 'O servidor desse alerta foi removido das configurações.' };
-      await zabbix.acknowledge(server, item.eventid, zabbix.ACK_MESSAGE);
+      await zabbix.acknowledge(server, item.eventid, message);
     }
     item.acknowledged = true;
+    // aparece na hora no Histórico; a próxima coleta traz o registro oficial do Zabbix
+    item.updates = [{ by: 'você', mine: true, at: Date.now(), message, ack: true }, ...(item.updates || [])];
     broadcast();
     setTimeout(poll, 1500);
     return { ok: true };
@@ -981,6 +1041,7 @@ ipcMain.handle('settings:test', async (e, which, changes, id) => {
 app.on('second-instance', () => setHidden(false));
 
 app.whenReady().then(() => {
+  loadHistory();
   // voltou do modo suspenso ou desbloqueou a tela: atualiza na hora
   powerMonitor.on('resume', () => pollNow());
   powerMonitor.on('unlock-screen', () => pollNow());

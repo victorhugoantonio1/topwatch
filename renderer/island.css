@@ -973,3 +973,44 @@ body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-be
   0% { transform: translateY(-5px) scale(1.25); color: var(--text); }
   100% { transform: none; }
 }
+
+/* ---------- Histórico ---------- */
+#list .section {
+  list-style: none;
+  padding: 8px 12px 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.row.two { height: auto; min-height: 44px; padding: 6px 12px; align-items: center; }
+.row.two .text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.row.two .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.two .sub { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.two .sub b { font-weight: 600; }
+.row.two .sub b.ackd { color: var(--sev-2); }
+.row.two .sub b.ok { color: var(--ok); }
+.row.two .sub .msg { margin-left: 6px; color: var(--soft); font-style: italic; }
+.row.two.ack .dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--c); opacity: 0.9; }
+.row.done .dot { background: var(--ok); opacity: 0.7; }
+.row.done .title { color: var(--soft); }
+
+/* reconhecer com nota */
+.btn.round { width: 28px; padding: 0; display: inline-grid; place-items: center; font-size: 13px; }
+.hero-note-input {
+  width: 100%;
+  margin-top: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  outline: none;
+}
+.hero-note-input:focus { border-color: color-mix(in srgb, var(--c) 60%, transparent); }
+.hero.noting .hero-title { -webkit-line-clamp: 1; }
+.hidden.hero-note-input { display: none; }

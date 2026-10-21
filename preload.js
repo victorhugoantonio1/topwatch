@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('topwatch', {
   openSettings: () => ipcRenderer.send('island:settings'),
   unpin: () => ipcRenderer.send('island:unpin'),
   openUrl: (url) => ipcRenderer.send('open-url', url),
-  acknowledge: (itemId) => ipcRenderer.invoke('zabbix:ack', itemId),
+  acknowledge: (itemId, note) => ipcRenderer.invoke('zabbix:ack', itemId, note),
   onState: (fn) => ipcRenderer.on('state', (_e, s) => fn(s)),
   onPinned: (fn) => ipcRenderer.on('pinned', (_e, p) => fn(p)),
   onAlert: (fn) => ipcRenderer.on('alert', () => fn()),

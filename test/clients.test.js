@@ -185,7 +185,8 @@ test('Zabbix: Reconhecer com mensagem e, sem permissão de comentar, sem ela', a
   try {
     const srv = { id: 'z', url, token: 't', auth: 'header' };
     await zabbix.acknowledge(srv, '901', zabbix.ACK_MESSAGE);
-    assert.deepEqual(seen[0], { eventids: ['901'], action: 6, message: 'Reconhecido pelo TopWatch' });
+    assert.deepEqual(seen[0], { eventids: ['901'], action: 6, message: zabbix.ACK_MESSAGE });
+    assert.match(zabbix.ACK_MESSAGE, /em tratativa/);
     canComment = false;
     seen.length = 0;
     await zabbix.acknowledge(srv, '902', zabbix.ACK_MESSAGE);
@@ -486,4 +487,33 @@ test('HTTP: erros de rede viram mensagem em português e guardam o código', () 
   assert.match(friendly(Object.assign(new Error('x'), { code: 'SELF_SIGNED_CERT_IN_CHAIN' }), u).message, /autoassinado/);
   const other = new Error('outra coisa');
   assert.equal(friendly(other, u), other);
+});
+
+test('Zabbix: traz quem reconheceu e a mensagem; sem permissão pra ver usuários, fica sem nome', async () => {
+  zabbix._resetDetection();
+  let allowUsers = true;
+  const { server, url } = await serve((req, res, raw) => {
+    const body = JSON.parse(raw);
+    const reply = (result) => json(res, 200, { jsonrpc: '2.0', id: body.id, result });
+    if (body.method === 'apiinfo.version') return reply('7.0.0');
+    if (body.method === 'problem.get') {
+      assert.ok(body.params.selectAcknowledges);
+      return reply([{ eventid: '10', objectid: '1', name: 'Disco cheio', severity: '4', clock: '1760000000', acknowledged: '1',
+        acknowledges: [{ userid: '7', clock: '1760000300', message: 'olhando', action: '6' }, { userid: '8', clock: '1760000100', message: '', action: '0' }] }]);
+    }
+    if (body.method === 'trigger.get') return reply([{ triggerid: '1', hosts: [{ host: 'srv-a', name: 'srv-a' }] }]);
+    if (body.method === 'user.get') return allowUsers ? reply([{ userid: '7', username: 'ana', name: 'Ana', surname: 'Souza' }]) : json(res, 200, { jsonrpc: '2.0', id: body.id, error: { code: -32500, message: 'No permissions' } });
+    return reply([]);
+  });
+  try {
+    const [p] = await zabbix.fetchProblems({ id: 'z', url, token: 't', auth: 'header' });
+    assert.equal(p.updates.length, 1); // a atualização sem ack e sem mensagem fica de fora
+    assert.deepEqual({ by: p.updates[0].by, message: p.updates[0].message, ack: p.updates[0].ack }, { by: 'Ana Souza', message: 'olhando', ack: true });
+    zabbix._resetDetection();
+    allowUsers = false;
+    const [q] = await zabbix.fetchProblems({ id: 'z', url, token: 't', auth: 'header' });
+    assert.equal(q.updates[0].by, null);
+  } finally {
+    server.close();
+  }
 });

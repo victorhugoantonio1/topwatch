@@ -15,6 +15,7 @@ const DEFAULTS = {
   notify: true,
   notifySound: true, // som do próprio TopWatch em alerta Alta/Desastre novo
   notifyBar: true, // caixinha embaixo da barra em alerta Alta/Desastre novo
+  ackMessage: '', // mensagem que vai no Reconhecer; vazio = 'Alerta reconhecido e em tratativa (via TopWatch)'
   soundFile: '', // som escolhido pelo usuário (cópia em userData/sounds); vazio = padrão
   soundLabel: '', // nome original do arquivo, só pra mostrar
   // display: 'both' (tudo) | 'zabbix' | id de um plugin; highlight: alerta grave toma a pílula; mascot: Vigia
@@ -248,6 +249,7 @@ function createStore({ dir, safeStorage, plugins = [] }) {
     }
 
     next.pollSeconds = clampPoll(next.pollSeconds);
+    next.ackMessage = String(next.ackMessage || '').slice(0, 300);
     if (!['both', 'zabbix', ...known.keys()].includes(next.ui.display)) next.ui.display = 'both';
     // a tela de configurações manda só a borda; monitor e posição continuam os de antes
     if (rest.ui && rest.ui.dock) next.ui.dock = cleanDock({ ...(current.ui.dock || {}), ...rest.ui.dock });

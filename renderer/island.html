@@ -28,6 +28,7 @@
         <header>
           <nav id="tabs" role="tablist">
             <button class="tab active" data-tab="zabbix" role="tab">Alertas<span class="count" id="count-zabbix">0</span></button>
+            <button class="tab" data-tab="history" role="tab" title="Em tratativa e resolvidos hoje">Histórico<span class="count" id="count-history">0</span></button>
             <!-- abas dos plugins entram aqui -->
           </nav>
           <div class="actions">
@@ -53,8 +54,10 @@
           <div class="hero-text">
             <div class="hero-meta" id="hero-meta"></div>
             <div class="hero-title" id="hero-title"></div>
+            <input id="hero-note-input" class="hero-note-input hidden" type="text" maxlength="500" spellcheck="false" placeholder="Nota pro time. Enter reconhece, Esc cancela" />
           </div>
           <div class="hero-actions">
+            <button id="hero-note" class="btn ghost round" title="Reconhecer com uma nota pro time" aria-label="Reconhecer com uma nota">✎</button>
             <button id="hero-ack" class="btn ghost">Reconhecer</button>
             <button id="hero-open" class="btn solid">Abrir</button>
           </div>

@@ -9,6 +9,7 @@ const FIELDS = [
   'notify',
   'notifyBar',
   'notifySound',
+  'ackMessage',
   'pollSeconds',
   'ui.display',
   'ui.dock.edge',

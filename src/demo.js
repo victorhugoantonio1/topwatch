@@ -53,10 +53,20 @@ function reset() {
   injected.length = 0;
   cleared = false;
   acked.clear();
+  ackInfo.clear();
 }
 
-function acknowledge(eventid) {
+const ackInfo = new Map(); // eventid -> { at, message }
+function acknowledge(eventid, message) {
   acked.add(String(eventid));
+  ackInfo.set(String(eventid), { at: Date.now(), message: message || '' });
+}
+// atualizações de exemplo: o fw-matriz já vem reconhecido por outra pessoa do time
+const SAMPLE_UPDATES = { 'demo-2': [{ by: 'Ana Souza', at: Date.now() - 9 * MIN, message: 'Operadora abriu chamado, previsão de 1 h', ack: true }] };
+function updatesFor(eventid) {
+  const mine = ackInfo.get(eventid);
+  const list = mine ? [{ by: 'você', mine: true, at: mine.at, message: mine.message, ack: true }] : [];
+  return [...list, ...(SAMPLE_UPDATES[eventid] || [])];
 }
 
 function snapshot() {
@@ -75,6 +85,7 @@ function snapshot() {
     hosts: [p.host],
     since: now - p.ago * MIN,
     acknowledged: !!p.ack || acked.has(`demo-${i}`),
+    updates: updatesFor(`demo-${i}`),
     url: 'https://www.zabbix.com/documentation/current/en/manual/api',
   })).filter((p) => !(p.eventid === 'demo-0' && tick % 4 === 0));
   const sims = injected.map((p) => ({
@@ -89,6 +100,7 @@ function snapshot() {
     hosts: [p.host],
     since: p.since,
     acknowledged: acked.has(p.eventid),
+    updates: updatesFor(p.eventid),
     url: 'https://www.zabbix.com/documentation/current/en/manual/api',
   }));
   return { problems: [...sims, ...(cleared ? [] : problems)] };

@@ -41,6 +41,11 @@
           </span>
         </div>
         <p class="result" id="sound-result"></p>
+        <label class="field">
+          <b>Mensagem ao reconhecer</b>
+          <input type="text" id="ackMessage" maxlength="300" spellcheck="false" placeholder="Alerta reconhecido e em tratativa (via TopWatch)" />
+          <small>Vai junto com o Reconhecer e aparece no histórico do problema no Zabbix. Pelo ✎ da barra dá pra escrever uma nota na hora.</small>
+        </label>
         <label class="row">
           <span><b>Atualizar a cada</b><small>Entre 30 e 600 segundos.</small></span>
           <span class="unit"><input type="number" id="pollSeconds" min="30" max="600" step="10" /> s</span>

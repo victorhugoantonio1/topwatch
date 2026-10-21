@@ -67,6 +67,19 @@ function sevColor(sev) {
   return `var(--sev-${Math.min(5, Math.max(0, sev))})`;
 }
 
+function dur(ms) {
+  const m = Math.max(1, Math.round(ms / 60000));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  if (h < 24) return r ? `${h} h ${r} min` : `${h} h`;
+  return `${Math.round(h / 24)} d`;
+}
+
+function ackedProblems(s) {
+  return s.zabbix.items.filter((p) => p.acknowledged);
+}
+
 function openProblems(s) {
   return s.zabbix.items.filter((p) => !p.acknowledged);
 }
@@ -254,6 +267,9 @@ function row(item) {
 // escorrega pro lugar novo (técnica FLIP: mede antes, mede depois, anima a diferença).
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 function renderList(list, items) {
+  const switched = list.dataset.tab !== tab;
+  list.dataset.tab = tab;
+  if (switched) list.textContent = '';
   const before = new Map();
   list.querySelectorAll('.row[data-id]:not(.leave)').forEach((li) => before.set(li.dataset.id, { top: li.getBoundingClientRect().top, el: li }));
   const nextIds = new Set(items.map((it) => it.id));
@@ -287,7 +303,71 @@ function renderList(list, items) {
   list.classList.toggle('scrolls', list.scrollHeight > list.clientHeight + 2);
 }
 
+// linha do histórico: duas linhas, com quem reconheceu e a mensagem, ou quando resolveu e quanto durou
+function histRow(item, kind) {
+  const li = el('li', `row two${kind === 'resolved' ? ' done' : ' ack'}`);
+  li.dataset.id = `${kind}:${item.id}`;
+  li.style.setProperty('--c', sevColor(item.severity));
+  li.append(el('span', 'dot'));
+  const text = el('span', 'text');
+  text.append(el('span', 'title', item.title));
+  const sub = el('span', 'sub');
+  if (kind === 'resolved') {
+    sub.append(el('b', 'ok', 'Resolvido'));
+    sub.append(document.createTextNode(` há ${ago(item.resolvedAt) === 'agora' ? 'menos de 1 min' : ago(item.resolvedAt)} · durou ${dur(item.resolvedAt - item.since)}`));
+  } else {
+    const last = (item.updates || []).find((u) => u.ack) || (item.updates || [])[0];
+    sub.append(el('b', 'ackd', 'Em tratativa'));
+    if (last) {
+      const who = last.mine ? 'você' : last.by || 'alguém do time';
+      sub.append(document.createTextNode(` · ${who}, ${ago(last.at) === 'agora' ? 'agora' : `há ${ago(last.at)}`}`));
+      if (last.message) sub.append(el('span', 'msg', `“${last.message}”`));
+    }
+  }
+  text.append(sub);
+  li.append(text);
+  const where = el('span', 'where', (item.hosts || []).join(', '));
+  if (state.zabbix.multi && item.serverName) where.prepend(el('span', 'srv', item.serverName));
+  li.append(where);
+  li.append(el('span', 'age', kind === 'resolved' ? '' : ago(item.since)));
+  if (item.url) {
+    li.append(el('span', 'go', '↗'));
+    li.addEventListener('click', () => topwatch.openUrl(item.url));
+  }
+  li.title = item.title;
+  return li;
+}
+
+function renderHistory(s) {
+  const working = sortedProblems(ackedProblems(s));
+  const resolved = (s.history || []).slice(0, 50);
+  renderHero(null);
+  const list = $('list');
+  const animate = list.dataset.tab === 'history';
+  list.dataset.tab = 'history';
+  const before = animate ? new Set([...list.querySelectorAll('.row[data-id]')].map((li) => li.dataset.id)) : null;
+  list.textContent = '';
+  const section = (label, n) => list.append(el('li', 'section', `${label} · ${n}`));
+  if (working.length) {
+    section('Em tratativa', working.length);
+    working.forEach((it) => list.append(histRow(it, 'working')));
+  }
+  if (resolved.length) {
+    section('Resolvidos nas últimas 24 h', resolved.length);
+    resolved.forEach((it) => list.append(histRow(it, 'resolved')));
+  }
+  if (before && !reduceMotion) list.querySelectorAll('.row[data-id]').forEach((li) => !before.has(li.dataset.id) && li.classList.add('enter'));
+  list.classList.toggle('scrolls', list.scrollHeight > list.clientHeight + 2);
+  const quiet = !working.length && !resolved.length;
+  $('calm').classList.toggle('hidden', !quiet);
+  island.classList.toggle('quiet', quiet);
+  $('calm-text').textContent = 'Nada em tratativa e nada resolvido nas últimas 24 h.';
+  const errBox = $('error');
+  errBox.classList.add('hidden');
+}
+
 function renderPanel(s) {
+  if (tab === 'history') return renderHistory(s);
   const plugin = tab === 'zabbix' ? null : pluginById(s, tab);
   const src = plugin || s.zabbix;
 
@@ -310,8 +390,8 @@ function renderPanel(s) {
   let items;
   let hero = null;
   if (tab === 'zabbix') {
-    items = sortedProblems(src.items);
-    if (items[0] && !items[0].acknowledged) hero = items.shift();
+    items = sortedProblems(src.items.filter((p) => !p.acknowledged));
+    if (items[0]) hero = items.shift();
   } else {
     items = sortedPluginItems(src.items);
     hero = items.shift() || null;
@@ -330,7 +410,10 @@ function renderPanel(s) {
   $('calm-bot').classList.toggle('hidden', !mascot);
   $('calm-orb').classList.toggle('hidden', mascot);
   if (!src.enabled) $('calm-text').textContent = 'Zabbix desativado nas configurações.';
-  else if (!plugin) $('calm-text').textContent = 'Nenhum alerta pendente. Tudo calmo.';
+  else if (!plugin) {
+    const n = ackedProblems(s).length;
+    $('calm-text').textContent = n ? `Nada pendente. ${n} em tratativa no Histórico.` : 'Nenhum alerta pendente. Tudo calmo.';
+  }
   else $('calm-text').textContent = plugin.tab.empty;
 }
 
@@ -354,16 +437,16 @@ function syncPluginTabs(s) {
     b.append(c);
     nav.append(b);
   }
-  if (tab !== 'zabbix' && !pluginById(s, tab)) tab = 'zabbix';
+  if (tab !== 'zabbix' && tab !== 'history' && !pluginById(s, tab)) tab = 'zabbix';
 }
 
 function applyDisplay(s) {
   syncPluginTabs(s);
   const d = display(s);
-  if (d !== 'both') tab = d;
+  if (d !== 'both' && !(d === 'zabbix' && tab === 'history')) tab = d;
   document.querySelectorAll('.tab').forEach((x) => {
     x.classList.toggle('active', x.dataset.tab === tab);
-    x.classList.toggle('hidden', !shows(s, x.dataset.tab));
+    x.classList.toggle('hidden', !shows(s, x.dataset.tab === 'history' ? 'zabbix' : x.dataset.tab));
   });
 }
 
@@ -381,6 +464,7 @@ function setCount(node, n) {
 function renderHeader(s) {
   const zHot = openProblems(s).some((p) => p.severity >= 4);
   setCount($('count-zabbix'), openProblems(s).length);
+  setCount($('count-history'), ackedProblems(s).length);
   $('count-zabbix').classList.toggle('hot', zHot);
   for (const p of pluginTabs(s)) {
     const c = document.querySelector(`.count[data-count="${p.id}"]`);
@@ -428,12 +512,13 @@ $('hero-open').addEventListener('click', () => {
   if (heroItem) topwatch.openUrl(heroItem.url);
 });
 
-$('hero-ack').addEventListener('click', async () => {
+async function acknowledgeHero(note) {
   if (!heroItem || heroItem.source !== 'zabbix') return;
+  closeNote();
   const btn = $('hero-ack');
   btn.disabled = true;
   btn.textContent = 'Reconhecendo…';
-  const res = await topwatch.acknowledge(heroItem.id);
+  const res = await topwatch.acknowledge(heroItem.id, note);
   if (res.ok) heroBot.celebrate();
   if (!res.ok) {
     btn.disabled = false;
@@ -443,6 +528,25 @@ $('hero-ack').addEventListener('click', async () => {
     errBox.classList.remove('hidden');
   }
   // em caso de sucesso o processo principal manda o estado novo
+}
+$('hero-ack').addEventListener('click', () => acknowledgeHero());
+
+// ✎: escreve uma nota pro time e reconhece com ela
+const noteInput = $('hero-note-input');
+function openNote() {
+  $('hero').classList.add('noting');
+  noteInput.classList.remove('hidden');
+  noteInput.value = '';
+  noteInput.focus();
+}
+function closeNote() {
+  $('hero').classList.remove('noting');
+  noteInput.classList.add('hidden');
+}
+$('hero-note').addEventListener('click', () => (noteInput.classList.contains('hidden') ? openNote() : closeNote()));
+noteInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && noteInput.value.trim()) acknowledgeHero(noteInput.value.trim());
+  if (e.key === 'Escape') closeNote();
 });
 
 $('panel').addEventListener('mousemove', (e) => {

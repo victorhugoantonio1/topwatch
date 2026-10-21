@@ -16,6 +16,7 @@ const detected = new Map();
 
 // hosts por trigger ("url#triggerid" -> nomes), pra não repetir trigger.get toda rodada
 const hostCache = new Map();
+const userCache = new Map(); // `${api}#${userid}` -> nome de quem reconheceu (null = sem permissão pra ver)
 
 function baseUrl(apiUrl) {
   return String(apiUrl)
@@ -141,6 +142,8 @@ async function fetchProblems(server, { minSeverity = 2, limit = 50 } = {}) {
 
   const problems = await call(server, 'problem.get', {
     output: ['eventid', 'objectid', 'name', 'severity', 'clock', 'acknowledged'],
+    // quem reconheceu, quando e com qual mensagem (vem na mesma consulta, sem custo extra de chamada)
+    selectAcknowledges: ['userid', 'clock', 'message', 'action'],
     source: 0, // eventos de trigger
     object: 0,
     severities,
@@ -168,6 +171,23 @@ async function fetchProblems(server, { minSeverity = 2, limit = 50 } = {}) {
   }
   const hostsOf = (triggerid) => hostCache.get(`${key}#${triggerid}`) || [];
 
+  // nomes de quem reconheceu ou comentou; um usuário comum só enxerga alguns, então quem não vier fica sem nome
+  const userids = [...new Set(problems.flatMap((p) => (p.acknowledges || []).map((a) => String(a.userid))))].filter((id) => !userCache.has(`${key}#${id}`));
+  if (userids.length) {
+    try {
+      const users = await call(server, 'user.get', { userids, output: ['userid', 'username', 'alias', 'name', 'surname'] });
+      if (userCache.size > 2000) userCache.clear();
+      for (const u of users) {
+        const full = [u.name, u.surname].filter(Boolean).join(' ').trim();
+        userCache.set(`${key}#${u.userid}`, full || u.username || u.alias || null);
+      }
+    } catch {
+      // sem permissão pra ler usuários: segue sem os nomes
+    }
+    for (const id of userids) if (!userCache.has(`${key}#${id}`)) userCache.set(`${key}#${id}`, null);
+  }
+  const userName = (id) => userCache.get(`${key}#${id}`) || null;
+
   const base = baseUrl(normalizeApiUrl(server.url));
   return problems.map((p) => {
     const severity = Number(p.severity);
@@ -183,6 +203,12 @@ async function fetchProblems(server, { minSeverity = 2, limit = 50 } = {}) {
       hosts: hostsOf(p.objectid),
       since: Number(p.clock) * 1000,
       acknowledged: String(p.acknowledged) === '1',
+      // atualizações do problema, da mais recente pra mais antiga: reconhecimentos e mensagens
+      updates: (p.acknowledges || [])
+        .map((a) => ({ by: userName(String(a.userid)), userid: String(a.userid), at: Number(a.clock) * 1000, message: a.message || '', ack: (Number(a.action) & 2) === 2 }))
+        .filter((u) => u.ack || u.message)
+        .sort((a, b) => b.at - a.at)
+        .slice(0, 5),
       url: `${base}/tr_events.php?triggerid=${encodeURIComponent(p.objectid)}&eventid=${encodeURIComponent(p.eventid)}`,
     };
   });
@@ -210,7 +236,7 @@ async function fetchAll(zcfg) {
   return { items, errors, servers: servers.length };
 }
 
-const ACK_MESSAGE = 'Reconhecido pelo TopWatch';
+const ACK_MESSAGE = 'Alerta reconhecido e em tratativa (via TopWatch)';
 
 // Reconhece (ack) um evento no servidor de onde ele veio, deixando uma mensagem no histórico do
 // problema. Se o perfil do usuário não puder comentar, reconhece sem a mensagem.
@@ -270,5 +296,6 @@ module.exports = {
     detected.clear();
     workingMode.clear();
     hostCache.clear();
+    userCache.clear();
   },
 };

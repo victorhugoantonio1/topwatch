@@ -12,7 +12,8 @@ Feito pra quem não quer ficar com uma aba do Zabbix aberta o dia inteiro. Outra
 
 - **Luz do TopWatch**: verde quando está tudo calmo, amarela/laranja/vermelha conforme a severidade do pior alerta aberto. Em Alta ou Desastre, um feixe gira em volta da luz.
 - **Pílula inteligente**: recolhida, mostra a contagem (`3 alertas`) ou, se tiver algo grave, direto o que é (`Desastre · srv-app02`).
-- **Card de destaque**: ao abrir, o alerta mais grave vem em cima com **Reconhecer** (ack no Zabbix, com a mensagem "Reconhecido pelo TopWatch" no histórico do problema) e **Abrir**. O resto fica numa lista compacta.
+- **Card de destaque**: ao abrir, o alerta mais grave vem em cima com **Reconhecer** e **Abrir**. O Reconhecer deixa no Zabbix a mensagem "Alerta reconhecido e em tratativa (via TopWatch)" (dá pra mudar nas configurações) ou uma nota escrita na hora pelo ✎. O resto fica numa lista compacta.
+- **Histórico**: aba com o que está **em tratativa** (reconhecido e ainda ativo, com quem reconheceu, quando e a mensagem, inclusive de outras pessoas do time) e o que foi **resolvido nas últimas 24 h**, com quanto tempo durou.
 - **Vários Zabbix ao mesmo tempo**: cadastre quantos servidores quiser, de versões diferentes. Os alertas aparecem juntos, cada um com a etiqueta do servidor de onde veio, e o **Reconhecer** vai pro servidor certo. Se um cair, os outros continuam aparecendo.
 - **Em qualquer borda e em qualquer monitor**: topo, embaixo ou nas laterais. Dá pra escolher nas configurações ou arrastar a barra: ela vira um robozinho de perninhas e gruda na borda onde você soltar.
 - **Aviso de alerta grave** (Alta ou Desastre): a barra cresce e mostra o alerta, notificação do Windows e som. Cada um liga e desliga nas configurações, e o som pode ser um arquivo seu (.wav, .mp3, .ogg).

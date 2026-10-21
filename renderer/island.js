@@ -76,6 +76,19 @@ function dur(ms) {
   return `${Math.round(h / 24)} d`;
 }
 
+// média em ms, ignorando o que não dá pra medir (sem data ou negativo); null se não sobrar nada
+function meanMs(values) {
+  const ok = values.filter((v) => Number.isFinite(v) && v >= 0);
+  return ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : null;
+}
+
+// quanto tempo o problema levou pra ser reconhecido (primeiro ack registrado)
+function ackDelay(item) {
+  const acks = (item.updates || []).filter((u) => u.ack && u.at);
+  if (!acks.length || !item.since) return null;
+  return Math.min(...acks.map((u) => u.at)) - item.since;
+}
+
 function ackedProblems(s) {
   return s.zabbix.items.filter((p) => p.acknowledged);
 }
@@ -347,13 +360,19 @@ function renderHistory(s) {
   list.dataset.tab = 'history';
   const before = animate ? new Set([...list.querySelectorAll('.row[data-id]')].map((li) => li.dataset.id)) : null;
   list.textContent = '';
-  const section = (label, n) => list.append(el('li', 'section', `${label} · ${n}`));
+  const section = (label, n, stat) => {
+    const li = el('li', 'section', `${label} · ${n}`);
+    if (stat) li.append(el('span', 'stat', stat));
+    list.append(li);
+  };
   if (working.length) {
-    section('Em tratativa', working.length);
+    const mtta = meanMs(working.map(ackDelay));
+    section('Em tratativa', working.length, mtta != null ? `resposta média ${dur(mtta)}` : '');
     working.forEach((it) => list.append(histRow(it, 'working')));
   }
   if (resolved.length) {
-    section('Resolvidos nas últimas 24 h', resolved.length);
+    const mttr = meanMs(resolved.map((it) => it.resolvedAt - it.since));
+    section('Resolvidos nas últimas 24 h', resolved.length, mttr != null ? `resolução média ${dur(mttr)}` : '');
     resolved.forEach((it) => list.append(histRow(it, 'resolved')));
   }
   if (before && !reduceMotion) list.querySelectorAll('.row[data-id]').forEach((li) => !before.has(li.dataset.id) && li.classList.add('enter'));

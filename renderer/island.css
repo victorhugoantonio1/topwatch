@@ -983,6 +983,17 @@ body.dragging .dragbot.flying { transition: transform var(--fly, 300ms) cubic-be
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--muted);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+#list .section .stat {
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 .row.two { height: auto; min-height: 44px; padding: 6px 12px; align-items: center; }
 .row.two .text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }

@@ -196,6 +196,7 @@ function loadAllPlugins() {
       instance = p.mod.create({ request, version: app.getVersion() });
       if (!instance || typeof instance.fetch !== 'function') throw new Error('create() não devolveu um objeto com fetch()');
     } catch (err) {
+      instance = null; // recusa de verdade: sem isso, um create() que devolve objeto sem fetch() seguia carregado
       pluginErrors.push({ dir: p.dir, message: `create() falhou: ${err.message}` });
     }
     return { ...p, instance };

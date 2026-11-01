@@ -3,6 +3,8 @@
 
 const $ = (id) => document.getElementById(id);
 
+if (topwatch.platform === 'win32') document.body.classList.add('win-titlebar');
+
 // campos simples: id do elemento = caminho na config
 const FIELDS = [
   'demo',

@@ -537,3 +537,61 @@ h3.sub {
 
 /* "Esquecer" ao lado de um token salvo */
 button.link.forget { margin-top: 6px; align-self: flex-start; font-size: 12px; }
+
+/* ---------- Windows: barra de título do próprio app ---------- */
+/* A janela abre sem a barra branca do sistema (main.js, titleBarOverlay). A faixa .titlebar arrasta
+   a janela; o conteúdo rola dentro do <main>, abaixo dela, pra barra de rolagem não passar por
+   baixo dos botões de minimizar/fechar. */
+.titlebar { display: none; }
+
+.win-titlebar .titlebar {
+  display: block;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 40px;
+  z-index: 20;
+  -webkit-app-region: drag;
+}
+
+.win-titlebar {
+  height: 100vh;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.win-titlebar .side {
+  padding-top: 14px;
+}
+
+.win-titlebar .brand {
+  height: 26px;
+  padding-bottom: 0;
+  margin-bottom: 16px;
+}
+
+.win-titlebar main {
+  position: fixed;
+  top: 40px;
+  bottom: 0;
+  left: var(--side-w);
+  right: 0;
+  max-width: none;
+  margin: 0;
+  padding: 12px 32px 88px;
+  overflow-y: auto;
+}
+
+.win-titlebar main > * {
+  max-width: 640px;
+}
+
+.win-titlebar main::-webkit-scrollbar { width: 10px; }
+.win-titlebar main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border: 3px solid var(--bg);
+  border-radius: 6px;
+}
+
+@media (max-width: 700px) {
+  .win-titlebar main { left: 0; }
+}

@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('topwatch', {
   onDragLanded: (fn) => ipcRenderer.on('drag:landed', (_e, d) => fn(d)),
 
   // configurações
+  platform: process.platform, // 'win32': janela sem a barra de título do sistema
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (changes) => ipcRenderer.invoke('settings:save', changes),
   // which = 'zabbix' (id = servidor) ou 'plugin' (id = plugin)

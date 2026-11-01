@@ -22,24 +22,24 @@
       <ul>
         <li><a href="#como-funciona">Como funciona</a></li>
         <li><a href="plugins/">Plugins</a></li>
+        <li><a href="#perguntas">Perguntas</a></li>
         <li><a href="https://github.com/victorhugoantonio1/topwatch">GitHub</a></li>
       </ul>
     </header>
 
     <main>
-      <div class="wrap hero">
+      <div class="wrap hero hero-center">
+        <div class="hero-pill" aria-hidden="true"><span class="hp-light"></span><b>Desastre</b><span class="hp-host">srv-app02</span></div>
         <h1>Alertas do Zabbix no topo da tela, sem abrir aba nenhuma.</h1>
-        <div class="hero-side">
-          <p class="lead">Uma barra discreta no topo da tela. Você continua no que está fazendo; quando um alerta grave aparece, a luz muda de cor e a barra mostra o host com problema.</p>
-          <div class="actions">
-            <a class="btn primary" href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch.msi">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" /></svg>
-              Baixar para Windows
-            </a>
-            <a class="btn" href="https://github.com/victorhugoantonio1/topwatch">Ver o código</a>
-          </div>
-          <p class="fine">Grátis e de código aberto. Windows 10 e 11, Linux em desenvolvimento. Zabbix 5.4 a 7.x.</p>
+        <p class="lead">Uma barra discreta que fica fora do caminho. Quando chega um alerta grave, a luz muda de cor e a barra mostra o host com problema.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch.msi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" /></svg>
+            Baixar para Windows
+          </a>
+          <a class="btn" href="https://github.com/victorhugoantonio1/topwatch">Ver o código</a>
         </div>
+        <p class="fine">Software livre (AGPL-3.0) · Windows 10 e 11 · Zabbix 5.4 a 7.x</p>
       </div>
 
       <!-- uma tela de computador com o TopWatch de verdade rodando -->
@@ -94,20 +94,20 @@ joao.silva       True
 
       <section id="como-funciona">
         <div class="wrap">
-          <h2>Fica fora do caminho até você precisar</h2>
-          <ol class="flow">
-            <li class="flow-a">
-              <figure class="shot"><img src="assets/shots/pill-calm.png" width="344" height="60" alt="Barra recolhida, luz verde, 0 alertas" /></figure>
+          <h2>Fica fora do caminho até você precisar.</h2>
+          <ol class="cards">
+            <li style="--c: var(--ok)">
+              <span class="num">01</span>
               <h3>Recolhida, ela some</h3>
               <p>Uma pílula pequena no topo da tela. O mouse passa por ela, e nada que você estiver fazendo é atrapalhado.</p>
             </li>
-            <li class="flow-b">
-              <figure class="shot"><img src="assets/shots/pill-alert.png" width="420" height="60" alt="Barra recolhida em vermelho mostrando Desastre e o host srv-app02" /></figure>
+            <li style="--c: var(--high)">
+              <span class="num">02</span>
               <h3>Alerta grave aparece sozinho</h3>
-              <p>Em Alta ou Desastre, a luz fica vermelha e a pílula mostra direto o host com problema. O Windows também notifica.</p>
+              <p>Em Alta ou Desastre, a luz muda de cor e a pílula mostra direto o host com problema. O Windows também notifica.</p>
             </li>
-            <li class="flow-c">
-              <figure class="shot"><img src="assets/shots/panel.png" width="600" height="296" alt="Barra aberta: Desastre em destaque com os botões Reconhecer e Abrir, e a lista dos outros alertas" /></figure>
+            <li style="--c: #7ab8ff">
+              <span class="num">03</span>
               <h3>Passou o mouse, abriu</h3>
               <p>O alerta mais grave vem em destaque, com Reconhecer e Abrir. O resto fica numa lista curta, do mais grave para o menos grave.</p>
             </li>
@@ -117,8 +117,7 @@ joao.silva       True
 
       <section>
         <div class="wrap">
-          <h2>O que mais vem junto</h2>
-          <dl class="specs">
+          <dl class="specs specs-lined">
             <div>
               <dt>Leve no servidor</dt>
               <dd>Uma consulta a cada 60 segundos, com os hosts em cache. Menos que um dashboard do Zabbix aberto.</dd>
@@ -136,6 +135,29 @@ joao.silva       True
               <dd>Outros sistemas entram por plugins, cada um com sua aba. <a href="plugins/">Ver os plugins</a>.</dd>
             </div>
           </dl>
+        </div>
+      </section>
+
+      <section id="instalar">
+        <div class="wrap">
+          <div class="install-box">
+            <h2>Instalar leva um minuto.</h2>
+            <ol class="steps steps-num">
+              <li>
+                <h3>Baixe e instale</h3>
+                <p>O <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch.msi"><code>TopWatch.msi</code></a> pede permissão de administrador e instala para todos os usuários. Sem administrador? Use o <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch-Setup.exe">TopWatch-Setup.exe</a>, que instala só pro seu usuário, ou a <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch-Portable.exe">versão portátil</a>.</p>
+              </li>
+              <li>
+                <h3>Libere no SmartScreen</h3>
+                <p>O instalador ainda não é assinado. Clique em Mais informações e depois em Executar assim mesmo.</p>
+              </li>
+              <li>
+                <h3>Conecte o Zabbix</h3>
+                <p>No ícone da bandeja, abra Configurações, cole a URL e um token de API e use Testar conexão.</p>
+              </li>
+            </ol>
+            <a class="btn primary" href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch.msi">Baixar para Windows</a>
+          </div>
         </div>
       </section>
 
@@ -171,25 +193,6 @@ joao.silva       True
         </div>
       </section>
 
-      <section id="instalar">
-        <div class="wrap">
-          <h2>Instalar leva um minuto</h2>
-          <ol class="steps">
-            <li>
-              <h3>Baixe e instale</h3>
-              <p>Clique em <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch.msi">Baixar para Windows</a> e abra o <code>TopWatch.msi</code>. O Windows pede permissão de administrador e ele instala para todos os usuários, em Arquivos de Programas. Sem administrador? Use o <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch-Setup.exe">TopWatch-Setup.exe</a>, que instala só pro seu usuário, ou a <a href="https://github.com/victorhugoantonio1/topwatch/releases/latest/download/TopWatch-Portable.exe">versão portátil</a>.</p>
-            </li>
-            <li>
-              <h3>Libere no SmartScreen</h3>
-              <p>Clique em Mais informações e depois em Executar assim mesmo.</p>
-            </li>
-            <li>
-              <h3>Conecte o Zabbix</h3>
-              <p>No ícone da bandeja, abra Configurações, cole a URL e um token de API e use Testar conexão.</p>
-            </li>
-          </ol>
-        </div>
-      </section>
     </main>
 
     <footer>

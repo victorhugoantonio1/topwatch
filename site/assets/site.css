@@ -782,6 +782,137 @@ footer nav {
   color: var(--soft);
 }
 
+/* ---------- layout do canvas (repaginação) ---------- */
+
+/* topo centralizado, com a pílula da barra servindo de "selo" */
+.hero.hero-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+  padding: 72px 0 56px;
+}
+
+.hero-center h1 {
+  max-width: 17ch;
+  margin-top: 28px;
+}
+
+.hero-center .lead {
+  margin-top: 22px;
+  max-width: 48ch;
+}
+
+.hero-center .actions {
+  justify-content: center;
+}
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 16px 0 12px;
+  border-radius: 0 0 16px 16px;
+  background: var(--deep);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--dis) 35%, transparent), 0 14px 30px -10px rgba(0, 0, 0, 0.7);
+  font-size: 12.5px;
+}
+
+.hero-pill .hp-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dis);
+  box-shadow: 0 0 10px var(--dis);
+}
+
+.hero-pill b {
+  color: var(--dis);
+  font-weight: 600;
+}
+
+.hero-pill .hp-host {
+  font-family: var(--mono);
+}
+
+/* três cards numerados */
+.cards {
+  margin-top: 40px;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.cards li {
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--deep);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cards .num {
+  font: 500 13px/1 var(--mono);
+  color: var(--c);
+}
+
+.cards p {
+  color: var(--soft);
+  font-size: 15.5px;
+}
+
+/* recursos: a seção só tem a grade, sem título */
+.specs.specs-lined {
+  margin-top: 0;
+}
+
+/* instalação num bloco só */
+.install-box {
+  border-radius: 28px;
+  background: var(--deep);
+  padding: clamp(28px, 5vw, 56px);
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.install-box .btn {
+  align-self: flex-start;
+}
+
+.steps.steps-num {
+  margin-top: 0;
+}
+
+.steps-num li {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.steps-num li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  font: 500 13px/1 var(--mono);
+}
+
+.steps-num h3::before {
+  content: none;
+}
+
+#perguntas {
+  padding-bottom: 40px;
+}
+
 /* ---------- telas menores ---------- */
 
 @media (max-width: 900px) {

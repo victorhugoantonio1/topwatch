@@ -143,10 +143,14 @@ function windowIcon() {
 function brandTaskbar(win) {
   if (process.platform !== 'win32') return;
   try {
+    // O Windows só usa o appIconPath no botão da barra de tarefas quando a janela também tem um
+    // relaunchCommand. Sem ele, rodando pelo npm start, o botão ficava com o átomo do electron.exe.
+    const relaunchCommand = PORTABLE_EXE ? `"${PORTABLE_EXE}"` : app.isPackaged ? `"${process.execPath}"` : `"${process.execPath}" "${app.getAppPath()}"`;
     win.setAppDetails({
       appId: APP_USER_MODEL_ID,
       appIconPath: stableIcon('icon.ico'),
       appIconIndex: 0,
+      relaunchCommand,
       relaunchDisplayName: 'TopWatch',
     });
   } catch (err) {
@@ -384,6 +388,9 @@ function openSettings() {
     autoHideMenuBar: true,
     backgroundColor: '#101216',
     icon: windowIcon(),
+    // Windows: sem a barra de título branca do sistema. Os botões de minimizar/maximizar/fechar
+    // continuam sendo os do Windows, desenhados por cima na cor do app (renderer/settings.css, .titlebar).
+    ...(process.platform === 'win32' ? { titleBarStyle: 'hidden', titleBarOverlay: { color: '#101216', symbolColor: '#a9afb9', height: 40 } } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

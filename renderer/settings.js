@@ -445,3 +445,29 @@ $('save').addEventListener('click', async () => {
 });
 
 topwatch.getSettings().then(fillForm, () => fillForm(null));
+
+// ---------- menu lateral ----------
+// Botões (e não links #âncora): a janela bloqueia navegação, então o menu só rola até a seção.
+const navLinks = [...document.querySelectorAll('.nav-link')];
+for (const link of navLinks) {
+  link.addEventListener('click', () => {
+    const target = $(link.dataset.target);
+    if (target) target.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  });
+}
+// marca no menu a seção que está na tela
+if ('IntersectionObserver' in window) {
+  const seen = new Map();
+  const watcher = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+      const best = [...seen.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (best && best[1] > 0) navLinks.forEach((l) => l.classList.toggle('active', l.dataset.target === best[0]));
+    },
+    { threshold: [0, 0.25, 0.5, 0.75, 1] }
+  );
+  navLinks.forEach((l) => {
+    const target = $(l.dataset.target);
+    if (target) watcher.observe(target);
+  });
+}

@@ -7,19 +7,41 @@
     <link rel="stylesheet" href="settings.css" />
   </head>
   <body>
+    <nav class="side" aria-label="Seções das configurações">
+      <div class="brand"><span class="mark"></span>TopWatch</div>
+      <button type="button" class="nav-link" data-target="sec-geral"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>Geral</button>
+      <button type="button" class="nav-link" data-target="sec-alertas"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>Alertas e som</button>
+      <button type="button" class="nav-link" data-target="sec-aparencia"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M3 9h18" /></svg>Aparência</button>
+      <button type="button" class="nav-link" data-target="sec-zabbix"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2" /><rect x="3" y="13" width="18" height="7" rx="2" /><path d="M7 7.5h.01M7 16.5h.01" /></svg>Zabbix</button>
+      <button type="button" class="nav-link" data-target="sec-plugins"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z" /><path d="M12 16v5" /></svg>Plugins</button>
+    </nav>
+
     <main>
-      <h1><span class="mark"></span>TopWatch</h1>
+      <h1>Configurações</h1>
       <p class="lead">Alertas do Zabbix numa barrinha no topo da tela. Passe o mouse em cima pra abrir; <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> fixa aberta.</p>
 
       <div id="warn-crypto" class="warn hidden">A criptografia do sistema não está disponível; os tokens vão ficar salvos sem criptografia neste computador.</div>
 
-      <section>
+      <section id="sec-geral">
         <h2>Geral</h2>
         <label class="row switch">
           <span><b>Modo demo</b><small>Mostra dados de exemplo em vez de buscar nos servidores.</small></span>
           <input type="checkbox" id="demo" />
         </label>
-        <h3 class="sub">Alertas graves (Alta e Desastre)</h3>
+        <label class="field">
+          <b>Mensagem ao reconhecer</b>
+          <input type="text" id="ackMessage" maxlength="300" spellcheck="false" placeholder="Alerta reconhecido e em tratativa (via TopWatch)" />
+          <small>Vai junto com o Reconhecer e aparece no histórico do problema no Zabbix. Pelo ✎ da barra dá pra escrever uma nota na hora.</small>
+        </label>
+        <label class="row">
+          <span><b>Atualizar a cada</b><small>Entre 30 e 600 segundos.</small></span>
+          <span class="unit"><input type="number" id="pollSeconds" min="30" max="600" step="10" /> s</span>
+        </label>
+      </section>
+
+      <section id="sec-alertas">
+        <h2>Alertas e som</h2>
+        <p class="section-lead">Quando chega um alerta Alta ou Desastre novo.</p>
         <label class="row switch">
           <span><b>Mostrar na barra</b><small>A barra cresce e mostra o alerta por alguns segundos. Clique nela pra abrir.</small></span>
           <input type="checkbox" id="notifyBar" />
@@ -41,18 +63,9 @@
           </span>
         </div>
         <p class="result" id="sound-result"></p>
-        <label class="field">
-          <b>Mensagem ao reconhecer</b>
-          <input type="text" id="ackMessage" maxlength="300" spellcheck="false" placeholder="Alerta reconhecido e em tratativa (via TopWatch)" />
-          <small>Vai junto com o Reconhecer e aparece no histórico do problema no Zabbix. Pelo ✎ da barra dá pra escrever uma nota na hora.</small>
-        </label>
-        <label class="row">
-          <span><b>Atualizar a cada</b><small>Entre 30 e 600 segundos.</small></span>
-          <span class="unit"><input type="number" id="pollSeconds" min="30" max="600" step="10" /> s</span>
-        </label>
       </section>
 
-      <section>
+      <section id="sec-aparencia">
         <h2>Aparência</h2>
         <label class="field">
           <b>Posição da barra</b>
@@ -83,7 +96,7 @@
         </label>
       </section>
 
-      <section>
+      <section id="sec-zabbix">
         <div class="section-head">
           <h2>Zabbix</h2>
           <label class="switch inline"><input type="checkbox" id="zabbix.enabled" /> Ativo</label>
@@ -109,7 +122,7 @@
       <!-- uma seção por plugin instalado -->
       <div id="plugin-sections"></div>
 
-      <section>
+      <section id="sec-plugins">
         <h2>Plugins</h2>
         <p class="muted" id="plugins-none">Nenhum plugin instalado. Plugins adicionam integrações com outros sistemas, como sistemas de chamados, cada uma na sua aba.</p>
         <p class="muted"><button class="link inline" id="plugins-site">Ver os plugins disponíveis</button> no site do TopWatch.</p>

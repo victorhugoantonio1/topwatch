@@ -63,6 +63,9 @@ function ago(ts) {
   return `${Math.round(h / 24)} d`;
 }
 
+// rótulo curto pra coluna da lista (o completo continua no destaque e na pílula)
+const SEV_SHORT = ['N/C', 'Info', 'Atenção', 'Média', 'Alta', 'Desastre'];
+
 function sevColor(sev) {
   return `var(--sev-${Math.min(5, Math.max(0, sev))})`;
 }
@@ -259,7 +262,8 @@ function row(item) {
   li.title = item.title;
   const isZbx = item.source === 'zabbix';
   li.style.setProperty('--c', sevColor(isZbx ? item.severity : item.level));
-  li.append(el('span', 'dot'));
+  // severidade escrita, não só a cor: dá pra ler sem depender de distinguir os tons
+  li.append(el('span', 'sevtag', isZbx ? SEV_SHORT[item.severity] || item.severityLabel : item.levelLabel || ''));
   li.append(el('span', 'title', item.title));
   const where = el('span', 'where', isZbx ? item.hosts.join(', ') : [item.tag, item.detail].filter(Boolean).join(' · '));
   if (item.source === 'zabbix' && state.zabbix.multi && item.serverName) where.prepend(el('span', 'srv', item.serverName));

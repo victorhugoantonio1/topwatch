@@ -376,13 +376,13 @@ function openSettings() {
     return;
   }
   settingsWin = new BrowserWindow({
-    width: 560,
+    width: 860,
     height: 720,
     minWidth: 480,
     minHeight: 520,
     title: 'TopWatch – Configurações',
     autoHideMenuBar: true,
-    backgroundColor: '#14161a',
+    backgroundColor: '#101216',
     icon: windowIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

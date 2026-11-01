@@ -1,15 +1,15 @@
 /* TopWatch: site
    Cor aqui tem o mesmo significado que no app: a luz (verde, amarela, laranja, vermelha)
-   só aparece onde indica estado. O resto é azul-noite de sala de NOC. */
+   só aparece onde indica estado. O resto é grafite, o mesmo fundo da barra no app. */
 
 :root {
-  --night: #10141f;
-  --deep: #171e30;
-  --raise: #1d2539;
-  --rule: #262f48;
-  --ink: #e8ecf4;
-  --soft: #b6bfd0;
-  --mute: #8a95ab;
+  --night: #0b0c0f;
+  --deep: #15181e;
+  --raise: #1b1f26;
+  --rule: rgba(255, 255, 255, 0.09);
+  --ink: #eef0f3;
+  --soft: #a9afb9;
+  --mute: #8a909a;
   --ok: #5fe0a0;
   --warn: #f0d873;
   --high: #ff9a5c;
@@ -17,8 +17,9 @@
   /* cor da luz no momento (segue a barra de demonstração) */
   --glow: var(--dis);
 
-  --display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
-  --text: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --display: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --text: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
   --wrap: 1080px;
   color-scheme: dark;
 }
@@ -82,7 +83,8 @@ img {
   display: flex;
   align-items: center;
   gap: 10px;
-  font: 700 20px/1 var(--display);
+  font: 600 17px/1 var(--display);
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
@@ -121,7 +123,8 @@ img {
 }
 
 .hero h1 {
-  font: 800 clamp(40px, 5vw, 66px) / 0.98 var(--display);
+  font: 600 clamp(38px, 5vw, 60px) / 1.06 var(--display);
+  letter-spacing: -0.035em;
   letter-spacing: -0.035em;
   text-wrap: balance;
 }
@@ -149,8 +152,8 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  padding: 13px 20px;
-  border-radius: 11px;
+  padding: 14px 22px;
+  border-radius: 14px;
   font: 600 15.5px/1 var(--text);
   text-decoration: none;
   border: 1px solid var(--rule);
@@ -159,7 +162,7 @@ img {
 }
 
 .btn:hover {
-  border-color: #3d4a72;
+  border-color: rgba(255, 255, 255, 0.2);
   background: var(--deep);
 }
 
@@ -187,9 +190,7 @@ img {
   overflow: hidden;
   border: 1px solid var(--rule);
   background:
-    radial-gradient(120% 90% at 85% 110%, #2a2350 0%, transparent 55%),
-    radial-gradient(90% 80% at 0% 100%, #173248 0%, transparent 60%),
-    linear-gradient(180deg, #151c2e 0%, #10141f 100%);
+    linear-gradient(180deg, #1b1f26 0%, #121418 100%);
   isolation: isolate;
 }
 
@@ -313,12 +314,12 @@ img {
   background: none;
   font-size: 12.5px;
   line-height: 1.7;
-  color: #8f9bb3;
+  color: #9aa1ab;
   overflow: hidden;
 }
 
 .win pre b {
-  color: #c9d2e3;
+  color: #d6dae0;
   font-weight: 400;
 }
 
@@ -412,7 +413,7 @@ img {
   height: auto;
   border-radius: 18px;
   border: 1px solid var(--rule);
-  background: #10141f;
+  background: #0b0c0f;
   box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.8);
 }
 
@@ -428,14 +429,16 @@ section {
 }
 
 h2 {
-  font: 700 clamp(30px, 3.6vw, 46px) / 1.04 var(--display);
+  font: 600 clamp(28px, 3.4vw, 40px) / 1.1 var(--display);
+  letter-spacing: -0.025em;
   letter-spacing: -0.025em;
   max-width: 20ch;
   text-wrap: balance;
 }
 
 h3 {
-  font: 600 19px/1.3 var(--display);
+  font: 600 18px/1.3 var(--display);
+  letter-spacing: -0.01em;
   letter-spacing: -0.01em;
 }
 
@@ -449,7 +452,7 @@ h3 {
 .shot {
   border-radius: 16px;
   border: 1px solid var(--rule);
-  background: #1a2133;
+  background: #15181e;
   overflow: hidden;
 }
 
@@ -636,7 +639,7 @@ h3 {
 
 code,
 pre {
-  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 0.88em;
 }
 
@@ -655,7 +658,7 @@ pre {
   overflow-x: auto;
   line-height: 1.55;
   font-size: 14.5px;
-  color: #cfd6e4;
+  color: #d6dae0;
 }
 
 pre code {
@@ -664,7 +667,7 @@ pre code {
 }
 
 pre .c {
-  color: #6f7b95;
+  color: #8a909a;
 }
 
 footer {
@@ -694,7 +697,8 @@ footer nav {
 }
 
 .page-head h1 {
-  font: 800 clamp(42px, 5.6vw, 68px) / 1 var(--display);
+  font: 600 clamp(38px, 5vw, 60px) / 1.06 var(--display);
+  letter-spacing: -0.035em;
   letter-spacing: -0.035em;
 }
 

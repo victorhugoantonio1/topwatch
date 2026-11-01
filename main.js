@@ -24,6 +24,7 @@ const { request } = require('./src/http');
 const pluginKit = require('./src/plugins');
 const demo = require('./src/demo');
 const dockMath = require('./src/dock');
+const { createNoticeTracker } = require('./src/alerts');
 
 // Tamanho da janela da ilha. A janela é transparente e deixa o mouse passar,
 // então esse retângulo todo não atrapalha nada quando a ilha está recolhida.
@@ -46,7 +47,7 @@ let polling = false;
 let hidden = false;
 let pinned = false;
 let firstPoll = true;
-const seenProblems = new Set();
+const notices = createNoticeTracker();
 const allowedUrls = new Set();
 
 let state = {
@@ -193,7 +194,9 @@ function loadAllPlugins() {
     let instance = null;
     try {
       instance = p.mod.create({ request, version: app.getVersion() });
+      if (!instance || typeof instance.fetch !== 'function') throw new Error('create() não devolveu um objeto com fetch()');
     } catch (err) {
+      instance = null; // recusa de verdade: sem isso, um create() que devolve objeto sem fetch() seguia carregado
       pluginErrors.push({ dir: p.dir, message: `create() falhou: ${err.message}` });
     }
     return { ...p, instance };
@@ -431,16 +434,16 @@ function snapshotForUi() {
 
 function broadcast() {
   allowedUrls.clear();
-  for (const it of [...state.zabbix.items, ...state.plugins.flatMap((p) => p.items)]) if (it.url) allowedUrls.add(it.url);
+  // inclui o histórico: clicar num alerta resolvido (ou numa notificação de um alerta que já sumiu) abre o Zabbix
+  for (const it of [...state.zabbix.items, ...state.plugins.flatMap((p) => p.items), ...history]) if (it.url) allowedUrls.add(it.url);
   if (island && !island.isDestroyed()) island.webContents.send('state', snapshotForUi());
   updateTrayTooltip();
 }
 
-function notifyNewProblems(items) {
+// okServers: servidores que responderam nesta coleta (src/alerts.js explica a regra)
+function notifyNewProblems(items, okServers) {
   const cfg = store.get();
-  const fresh = items.filter((p) => !seenProblems.has(p.id));
-  items.forEach((p) => seenProblems.add(p.id));
-  if (firstPoll) return;
+  const fresh = notices.fresh(items, okServers);
   const grave = fresh.filter((x) => x.severity >= 4);
   if (!grave.length) return;
   if (island && !island.isDestroyed()) {
@@ -475,9 +478,11 @@ async function poll() {
   const cfg = store.get();
   const before = state.zabbix.items;
   const wasFirst = firstPoll;
+  let okServers = [];
   try {
     if (isDemo(cfg)) {
       const snap = demo.snapshot();
+      okServers = ['demo6', 'demo7'];
       state = {
         demo: true,
         updatedAt: Date.now(),
@@ -499,11 +504,13 @@ async function poll() {
       const active = plugins.filter((p) => cfg.plugins[p.mod.id] && cfg.plugins[p.mod.id].enabled);
       const [z, ...pr] = await Promise.allSettled([
         cfg.zabbix.enabled ? zabbix.fetchAll(cfg.zabbix) : Promise.resolve({ items: [], errors: [], servers: 0 }),
-        ...active.map((p) => p.instance.fetch(cfg.plugins[p.mod.id])),
+        // then(): um plugin que lança erro síncrono vira falha só dele, sem derrubar a coleta
+        ...active.map((p) => Promise.resolve().then(() => p.instance.fetch(cfg.plugins[p.mod.id]))),
       ]);
       // servidor que falhou nesta rodada mantém os alertas da rodada anterior (sem piscar a lista)
       const zr = z.status === 'fulfilled' ? z.value : { items: [], errors: [{ serverId: '*', message: z.reason.message }], servers: 0 };
       const failed = new Set(zr.errors.map((er) => er.serverId));
+      okServers = cfg.zabbix.enabled && !failed.has('*') ? zabbix.activeServers(cfg.zabbix).map((s) => s.id).filter((id) => !failed.has(id)) : [];
       const kept = state.zabbix.items.filter((it) => failed.has(it.serverId) || failed.has('*')).map((it) => ({ ...it, stale: true }));
       // todos os servidores falharam nesta rodada: "sem conexão"
       const allDown = cfg.zabbix.enabled && (z.status === 'rejected' || (zr.servers > 0 && failed.size >= zr.servers) || failed.has('*'));
@@ -533,7 +540,7 @@ async function poll() {
           if (i < 0) return pluginState(p, cfg);
           const r = pr[i];
           if (r.status === 'fulfilled') {
-            const items = (Array.isArray(r.value) ? r.value : []).slice(0, 200).map((it, k) => pluginKit.normalizeItem(p.mod, it, k));
+            const items = (Array.isArray(r.value) ? r.value : []).filter((it) => it && typeof it === 'object').slice(0, 200).map((it, k) => pluginKit.normalizeItem(p.mod, it, k));
             return pluginState(p, cfg, { items });
           }
           const msg = (r.reason && r.reason.message) || String(r.reason);
@@ -546,10 +553,10 @@ async function poll() {
     }
     if (!wasFirst) {
       const failedNow = new Set((state.zabbix.items || []).filter((it) => it.stale).map((it) => it.serverId));
-      const okServers = new Set(before.map((it) => it.serverId).filter((id) => !failedNow.has(id)));
-      if (!state.zabbix.offlineSince) recordResolved(before, state.zabbix.items, okServers);
+      const answered = new Set(before.map((it) => it.serverId).filter((id) => !failedNow.has(id)));
+      if (!state.zabbix.offlineSince) recordResolved(before, state.zabbix.items, answered);
     }
-    notifyNewProblems(state.zabbix.items);
+    notifyNewProblems(state.zabbix.items, okServers);
     firstPoll = false;
   } finally {
     polling = false;
@@ -619,28 +626,33 @@ function nextDelay() {
   return Math.min(base * 2 ** Math.min(failStreak, 4), Math.max(base, 5 * 60 * 1000));
 }
 
+// Coleta que nunca deixa de reagendar: um erro inesperado vai pro log e a próxima rodada acontece.
+// (Antes, um erro em poll() fazia schedule() nunca mais ser chamado e a barra congelava em silêncio.)
+function safePoll() {
+  return poll().catch((err) => logLine('[coleta]', (err && err.stack) || String(err)));
+}
+
 function schedule() {
   clearTimeout(pollTimer);
-  pollTimer = setTimeout(async () => {
-    await poll();
-    schedule();
+  pollTimer = setTimeout(() => {
+    safePoll().finally(schedule);
   }, nextDelay());
 }
 
 function restartPolling() {
   clearTimeout(pollTimer);
   firstPoll = true;
-  seenProblems.clear();
+  notices.reset();
   failStreak = 0;
   offlineSince = null;
-  poll().finally(schedule);
+  safePoll().finally(schedule);
 }
 
 // voltou do modo suspenso ou desbloqueou a tela: atualiza na hora, sem esperar a próxima rodada
 function pollNow() {
   failStreak = 0;
   clearTimeout(pollTimer);
-  poll().finally(schedule);
+  safePoll().finally(schedule);
 }
 
 function simulateDemo(fn) {
@@ -916,7 +928,7 @@ ipcMain.handle('zabbix:ack', async (e, itemId, note) => {
     // aparece na hora no Histórico; a próxima coleta traz o registro oficial do Zabbix
     item.updates = [{ by: 'você', mine: true, at: Date.now(), message, ack: true }, ...(item.updates || [])];
     broadcast();
-    setTimeout(poll, 1500);
+    setTimeout(safePoll, 1500);
     return { ok: true };
   } catch (err) {
     return { ok: false, message: err.message };

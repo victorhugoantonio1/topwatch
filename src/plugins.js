@@ -98,6 +98,7 @@ function secretKeys(mod) {
 
 // Item vindo do plugin -> formato que a barra desenha. Campos estranhos ficam de fora.
 function normalizeItem(mod, raw, i) {
+  if (!raw || typeof raw !== 'object') raw = {}; // plugin devolveu null ou um valor solto na lista
   const level = Math.min(5, Math.max(0, Math.round(Number(raw.level) || 0)));
   const url = typeof raw.url === 'string' && /^https?:\/\//i.test(raw.url) ? raw.url : null;
   const t = (v, max = 300) => (v === undefined || v === null ? '' : String(v).slice(0, max));

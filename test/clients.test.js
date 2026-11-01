@@ -517,3 +517,13 @@ test('Zabbix: traz quem reconheceu e a mensagem; sem permissão pra ver usuário
     server.close();
   }
 });
+
+test('Plugins: normalizeItem aguenta null e valores soltos na lista', () => {
+  const mod = { id: 'p' };
+  for (const raw of [null, undefined, 42, 'texto']) {
+    const it = pluginKit.normalizeItem(mod, raw, 3);
+    assert.equal(it.id, 'p-3');
+    assert.equal(it.title, '(sem título)');
+    assert.equal(it.level, 0);
+  }
+});

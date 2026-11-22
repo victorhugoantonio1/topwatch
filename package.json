@@ -18,7 +18,7 @@
     "lab:status": "node lab/zabbix/lab.js status"
   },
   "devDependencies": {
-    "electron": "^44.7.0",
+    "electron": "^44.11.5",
     "electron-builder": "^26.15.3"
   },
   "build": {

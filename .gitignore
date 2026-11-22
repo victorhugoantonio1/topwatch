@@ -7,3 +7,7 @@ Thumbs.db
 # token do laboratório
 lab/zabbix/.token
 _site/
+
+# cache do Python
+__pycache__/
+*.pyc

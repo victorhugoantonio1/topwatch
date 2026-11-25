@@ -24,7 +24,7 @@ function friendly(err, u) {
   let message = null;
   if (SELF_SIGNED.includes(err.code)) {
     message = `Certificado não confiável em ${u.host}. Se for um servidor interno, marque "aceitar certificado autoassinado".`;
-  } else if (NET_ERRORS[err.code]) {
+  } else if (Object.hasOwn(NET_ERRORS, err.code)) {
     message = NET_ERRORS[err.code](u);
   }
   if (!message) return err;
